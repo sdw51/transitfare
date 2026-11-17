@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: transitfare
+      POSTGRES_USER: transitfare
+      POSTGRES_PASSWORD: transitfare
+    ports:
+      - "5432:5432"
