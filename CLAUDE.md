@@ -16,6 +16,10 @@
 - 공개 DTO(`contract` 패키지)와 도메인 값 객체는 Java record.
 - `contract`의 enum은 한글 `label`·`description`을 가진다. 공통 인터페이스 없이 enum마다 `@JsonFormat(shape = OBJECT)`, `@JsonProperty("code") getCode()`, `@JsonCreator from(Object)`를 둔다(`docs/contracts.md`의 "코드 enum" 모양과 표). 응답은 `{code, label, description}`, 요청은 코드 문자열·객체 둘 다 허용, DB에는 코드만.
 - 에러: 모듈마다 `{module}/error/XxxErrorCode` enum(`ErrorCode` 구현, `HttpStatus` + 한글 메시지)에 모은다. code 이름은 모듈 접두사(`ITINERARY_OUT_OF_PERIOD`). 유스케이스에서 `throw new BusinessException(코드, "필드명")`. 응답 `{"status","code","message","field"}`. `domain` 패키지에서는 던지지 않는다. 에러 테스트는 HTTP 상태와 `$.code`를 둘 다 확인.
+- 주석(한글 Javadoc):
+  - **유스케이스:** 클래스에 한 줄(어떤 사용자 행동인지), `execute` 등 public 메서드마다 무엇을 하는지·입력·결과·던지는 에러 코드.
+  - **퍼사드:** 인터페이스와 구현의 메서드마다 무엇을 하는지와 **연결된 유스케이스와 그 유스케이스가 하는 일**(`{@link PriceLegsUseCase}`: 구간 목록을 받아 운영사별 요금 규칙으로 계산…).
+  - **domain:** 계산 규칙 메서드마다 규칙 요약(설계 문서 7-1장의 어느 규칙인지). 코드만 봐서 알기 어려운 분기에는 줄 주석.
 - 테스트: 메서드명은 영어(계획에 적힌 이름), 모든 테스트에 한글 `@DisplayName("도보 구간은 요금이 0원이다")`. 프론트는 `it("…")`에 한글 설명.
 
 ## 브랜치
