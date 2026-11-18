@@ -13,6 +13,7 @@
 - Lombok: 의존성 주입은 `@RequiredArgsConstructor` + `private final` 필드. 엔티티는 `@Getter`, `@NoArgsConstructor(access = AccessLevel.PROTECTED)`, `@Builder`. 로그는 `@Slf4j`.
 - `@Setter`, `@Data`는 쓰지 않는다. 값 변경은 이름 있는 메서드로 (`itinerary.changePeriod(start, end)`).
 - 공개 DTO(`contract` 패키지)와 도메인 값 객체는 Java record.
+- `contract`의 enum은 한글 `label`·`description`을 가진다. 공통 인터페이스 없이 enum마다 `@JsonFormat(shape = OBJECT)`, `@JsonProperty("code") getCode()`, `@JsonCreator from(Object)`를 둔다(`docs/contracts.md`의 "코드 enum" 모양과 표). 응답은 `{code, label, description}`, 요청은 코드 문자열·객체 둘 다 허용, DB에는 코드만.
 - 에러: 모듈마다 `{module}/error/XxxErrorCode` enum(`ErrorCode` 구현, `HttpStatus` + 한글 메시지)에 모은다. code 이름은 모듈 접두사(`ITINERARY_OUT_OF_PERIOD`). 유스케이스에서 `throw new BusinessException(코드, "필드명")`. 응답 `{"status","code","message","field"}`. `domain` 패키지에서는 던지지 않는다. 에러 테스트는 HTTP 상태와 `$.code`를 둘 다 확인.
 - 테스트: 메서드명은 영어(계획에 적힌 이름), 모든 테스트에 한글 `@DisplayName("도보 구간은 요금이 0원이다")`. 프론트는 `it("…")`에 한글 설명.
 

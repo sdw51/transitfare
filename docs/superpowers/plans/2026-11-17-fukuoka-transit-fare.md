@@ -29,7 +29,9 @@
 - 화면 언어 한국어. 역·운영사·승차권은 `name_ja` + `name_ko`.
 - 프론트 화면 작업은 `frontend-design` 스킬로 디자인 방향을 정하고 Mantine 테마로 반영. 부가 정보(열차 종별·좌석·소요시간)는 배지가 아니라 보조 텍스트, "미확인"은 경고색 텍스트.
 - 로컬 실행, PC 화면 기준, 인증 없음. E2E(Playwright) 없음 — 전체 흐름은 수동 확인.
-- 일행은 항상 같이 움직인다. 인원(어른/어린이)은 여행 단위로 한 번.
+- 일행은 항상 같이 움직인다. 인원(어른 수)은 여행 단위로 한 번.
+- **어린이 요금은 다루지 않는다**(v1 비목표, 사용자 결정 2026-11-18). 금액은 어른 1명 기준, 어린이 컬럼·필드·테스트 없음.
+- **코드 enum:** `contract`의 enum은 한글 `label`·`description` 필드, `@JsonProperty("code") getCode()`, 코드 문자열과 객체를 둘 다 읽는 `@JsonCreator from(Object)`를 enum마다 직접 둔다(공통 인터페이스 없음, `docs/contracts.md`의 "코드 enum" 모양 그대로). 응답 JSON은 `{code, label, description}` 객체. 목록과 라벨은 `docs/contracts.md`의 표. DB에는 코드만(`EnumType.STRING`).
 - **에러 처리:** 모듈마다 `{module}/error/XxxErrorCode` enum(`ErrorCode` 구현: `HttpStatus status`, `String message`)에 에러를 모은다. 유스케이스는 `throw new BusinessException(ItineraryErrorCode.ITINERARY_OUT_OF_PERIOD, "travelDate")`. 응답은 HTTP 상태와 같은 값의 본문 `{"status":400,"code":"ITINERARY_OUT_OF_PERIOD","message":"여행 기간 밖의 날짜입니다","field":"travelDate"}`(`field`는 없으면 null). code 이름은 모듈 접두사(`TRANSIT_`, `PASS_`, `ITINERARY_`, `DIRECTIONS_`). `domain` 패키지는 Spring에 의존하지 않으므로 `BusinessException`을 던지지 않고, 유스케이스가 결과를 보고 던진다. 에러 테스트는 HTTP 상태와 `$.code`를 둘 다 확인. 아래 "에러 코드" 표의 코드는 그 코드를 처음 던지는 커밋에 추가.
 - **Lombok:** `@RequiredArgsConstructor`(유스케이스·퍼사드 구현·컨트롤러·어댑터의 `final` 필드 주입), 엔티티에 `@Getter` + `@NoArgsConstructor(access = AccessLevel.PROTECTED)` + `@Builder`, 로그는 `@Slf4j`. **`@Setter`·`@Data`는 쓰지 않는다** — 값 변경은 이름 있는 메서드(`itinerary.changePeriod(start, end)`). 공개 DTO(`contract` 패키지)와 도메인 값 객체는 Java record.
 - **테스트 이름:** 메서드명은 계획에 적힌 영어 이름 그대로, 모든 테스트에 한글 `@DisplayName`(예: `@DisplayName("도보 구간은 요금이 0원이다") void walkLegIsFree()`). 프론트(Vitest)는 `it("도보 구간은 요금이 0원이다")`처럼 한글 설명.
@@ -78,7 +80,7 @@ main  ← 완성본. Task 1 커밋과 Task 19의 최종 머지만 들어간다
 
 ## 리뷰 포커스
 
-1. **어린이만 있거나 어른 0명인 여행** — 어른 0, 어린이 2도 정상 계산(어린이 요금·어린이 승차권 가격만 사용). → Task 3, Task 7 테스트.
+1. **인원 0명 또는 음수** — 400 "인원을 1명 이상 입력하세요"(`TRANSIT_INVALID_PASSENGERS`, `ITINERARY_INVALID_PASSENGERS`). → Task 5, Task 6 테스트.
 2. **같은 운영사 거리제 구간이 연속될 때(지하철 공항선→나나쿠마선, JR 가고시마 본선→규다이 본선)** — 사이에 도보가 끼어도 거리를 합산해 1회 계산, 다른 운영사가 끼면 끊는다. → Task 3 테스트.
 3. **승차권 가격을 원화로 입력했는데 환율이 비어 있음** — 저장 거부(400 "환율을 먼저 입력하세요"). → Task 8 테스트.
 4. **여행 기간 밖 날짜의 구간, 여행 끝을 넘는 다일 패스** — 구간 날짜는 기간 안만(400). 다일 패스는 끝을 넘어도 구매 가능으로 계산. → Task 6, Task 7 테스트.
@@ -184,7 +186,7 @@ backend/src/main/java/com/transitfare/
 │  │                       PricingResult, StationView, OperatorView, RegionView, MatchedLeg, StepToMatch
 │  ├─ usecase/             PriceLegsUseCase, SearchStationsUseCase, ListOperatorsUseCase, GetRegionUseCase,
 │  │                       MatchStepUseCase, ImportGtfsFaresUseCase
-│  ├─ domain/              FareEngine, FareData(인터페이스), ChildRounding, FareRuleType, StationNameNormalizer
+│  ├─ domain/              FareEngine, FareData(인터페이스), FareRuleType, StationNameNormalizer
 │  ├─ entity/              Region, Operator, OperatorAlias, Line, Station, LineStation, StationAlias,
 │  │                       DistanceFareBand, PairFare, FlatZone, FlatZoneStation, ReservedSeatFee, TransferDiscount
 │  ├─ repository/          엔티티별 리포지토리, JpaFareData(FareData 구현)
@@ -194,7 +196,7 @@ backend/src/main/java/com/transitfare/
 │  ├─ PassFacade.java
 │  ├─ contract/            TicketLeg, TicketParty, ProductView, ProductOverride, OptimizationResult, Purchase
 │  ├─ usecase/             ListProductsUseCase, OptimizeTicketsUseCase
-│  ├─ domain/              TicketOptimizer, ProductSpec, ProductType
+│  ├─ domain/              TicketOptimizer, ProductSpec
 │  ├─ entity/, repository/ TicketProduct, TicketCoverage
 │  ├─ controller/          ProductController
 │  └─ admin/               PassAdminController
@@ -293,42 +295,42 @@ frontend/src/
 ### Task 2: transit 모듈 — 지역·운영사·역·요금 데이터 스키마와 조회
 
 **Files:**
-- Create: `db/migration/transit/V1__transit_schema.sql`, `db/migration/transit/V2__transit_seed_region_operators.sql`, `transit/entity/*`, `transit/repository/*`(+`JpaFareData`), `transit/domain/{FareData,ChildRounding,FareRuleType,StationNameNormalizer}.java`, `transit/contract/{StationView,OperatorView,RegionView}.java`, `transit/usecase/{SearchStationsUseCase,ListOperatorsUseCase,GetRegionUseCase}.java`, `transit/TransitFacadeImpl.java`, `transit/controller/StationController.java`
+- Create: `db/migration/transit/V1__transit_schema.sql`, `db/migration/transit/V2__transit_seed_region_operators.sql`, `transit/entity/*`, `transit/repository/*`(+`JpaFareData`), `transit/domain/{FareData,FareRuleType,StationNameNormalizer}.java`, `transit/contract/{StationView,OperatorView,RegionView}.java`, `transit/usecase/{SearchStationsUseCase,ListOperatorsUseCase,GetRegionUseCase}.java`, `transit/TransitFacadeImpl.java`, `transit/controller/StationController.java`
 - Test: `transit/repository/JpaFareDataTest.java`, `transit/controller/StationControllerTest.java`
 
 **Interfaces:**
 - 테이블(모두 `transit.` 스키마, 컬럼명 고정):
   - `region(code PK, name_ko, name_ja, currency, timezone)`
-  - `operator(code PK, region_code, name_ja, name_ko, fare_rule_type, child_rounding, fare_basis_note)`
+  - `operator(code PK, region_code, name_ja, name_ko, fare_rule_type, fare_basis_note)`
   - `operator_alias(id, operator_code, alias)`
   - `line(id, operator_code, code, name_ja, name_ko)`
   - `station(id, region_code, operator_code, name_ja, name_ko, source_url, verified_on)` — 같은 실제 역도 운영사별 별도 행
   - `line_station(line_id, station_id, cumulative_km numeric(6,1))`
   - `station_alias(id, station_id, alias)` (unique station_id+alias)
   - `distance_fare_band(id, operator_code, kind 'BASE'|'EXPRESS', max_km numeric(6,1), adult_amount, source_url, verified_on)`
-  - `pair_fare(id, operator_code, station_a_id, station_b_id, kind 'BASE'|'EXPRESS', adult_amount, child_amount null, source_url, verified_on)` — 양방향 동일
+  - `pair_fare(id, operator_code, station_a_id, station_b_id, kind 'BASE'|'EXPRESS', amount, source_url, verified_on)` — 양방향 동일
   - `flat_zone(id, operator_code, adult_amount, source_url, verified_on)`, `flat_zone_station(zone_id, station_id)`
-  - `reserved_seat_fee(id, operator_code, adult_amount, child_amount, source_url, verified_on)`
-  - `transfer_discount(id, from_operator_code, to_operator_code, adult_discount, child_discount, note, source_url, verified_on)`
+  - `reserved_seat_fee(id, operator_code, amount, source_url, verified_on)`
+  - `transfer_discount(id, from_operator_code, to_operator_code, discount, note, source_url, verified_on)`
 - `FareData`(domain 인터페이스 — JPA 타입 노출 금지):
   ```java
-  Optional<OperatorRule> operator(String code);     // record OperatorRule(String code, FareRuleType ruleType, ChildRounding rounding)
+  Optional<OperatorRule> operator(String code);     // record OperatorRule(String code, FareRuleType ruleType)
   Optional<BigDecimal> cumulativeKm(long lineId, long stationId);
   Optional<Integer> distanceBandFare(String operatorCode, String kind, BigDecimal km); // km 이상인 가장 작은 max_km
-  Optional<PairFareRow> pairFare(String operatorCode, String kind, long a, long b);    // record PairFareRow(int adult, Integer child)
+  Optional<Integer> pairFare(String operatorCode, String kind, long a, long b);
   Optional<Integer> flatZoneFare(String operatorCode, long a, long b);
-  Optional<FeeRow> reservedSeatFee(String operatorCode);                              // record FeeRow(int adult, int child)
-  Optional<FeeRow> transferDiscount(String fromOperator, String toOperator);
+  Optional<Integer> reservedSeatFee(String operatorCode);
+  Optional<Integer> transferDiscount(String fromOperator, String toOperator);
   ```
 - `GET /api/v1/regions/{code}` → RegionView, `GET /api/v1/operators?region=JP-FUKUOKA` → `[{code,nameJa,nameKo,fareBasisNote}]`, `GET /api/v1/stations?region=&operator=&q=` → `[{id,operatorCode,nameJa,nameKo,lines:[{lineId,nameKo}]}]`(name_ja/name_ko/alias 부분일치, 최대 30)
 - `StationNameNormalizer.normalize(String) -> String`: 공백 제거, 전각 영숫자→반각, 끝의 "駅" 제거.
 
-- [ ] **Step 1:** `V1`에 스키마. `V2`에 `region('JP-FUKUOKA','후쿠오카','福岡','JPY','Asia/Tokyo')`와 운영사: `FUKUOKA_SUBWAY`(DISTANCE_BAND), `JR_KYUSHU`(DISTANCE_BAND), `NISHITETSU_RAIL`(STATION_PAIR), `NISHITETSU_BUS`(FLAT_ZONE_PLUS_PAIR), `NISHITETSU_HIGHWAY_BUS`(STATION_PAIR), `SHOWA_BUS`(STATION_PAIR), `KITAKYUSHU_MONORAIL`(STATION_PAIR), `OTHER`(MANUAL_ONLY). `child_rounding`·`fare_basis_note`는 공식 규정 확인 후(출처는 SQL 주석).
+- [ ] **Step 1:** `V1`에 스키마. `V2`에 `region('JP-FUKUOKA','후쿠오카','福岡','JPY','Asia/Tokyo')`와 운영사: `FUKUOKA_SUBWAY`(DISTANCE_BAND), `JR_KYUSHU`(DISTANCE_BAND), `NISHITETSU_RAIL`(STATION_PAIR), `NISHITETSU_BUS`(FLAT_ZONE_PLUS_PAIR), `NISHITETSU_HIGHWAY_BUS`(STATION_PAIR), `SHOWA_BUS`(STATION_PAIR), `KITAKYUSHU_MONORAIL`(STATION_PAIR), `OTHER`(MANUAL_ONLY). `fare_basis_note`는 공식 규정 확인 후(출처는 SQL 주석).
 - [ ] **Step 2: 실패하는 테스트** — `JpaFareDataTest`(@DataJpaTest + 테스트 SQL): `distanceBandFareReturnsSmallestBandCoveringKm()`(3.0→210, 7.0→260, km 3.1 → 260), `pairFareIsSymmetric()`, `flatZoneFareOnlyWhenBothStationsInZone()`; `StationControllerTest.searchMatchesAliasAndKoreanName()`; `StationNameNormalizerTest.stripsSuffixAndWidth()`("博多駅 "→"博多", "ＪＲ"→"JR").
 - [ ] **Step 3:** FAIL → **Step 4:** 구현 → **Step 5:** PASS (ArchitectureTest 포함)
 - [ ] **Step 6: 커밋**
   - ① `feat(transit): 요금 기준 데이터 도메인 생성` — `V1`, `V2`, entity
-  - ② `feat(transit): 역 이름 정규화·요금 조회 포트 로직 구현` — `FareData`, `ChildRounding`, `FareRuleType`, `StationNameNormalizer` + `StationNameNormalizerTest`
+  - ② `feat(transit): 역 이름 정규화·요금 조회 포트 로직 구현` — `FareData`, `FareRuleType`, `StationNameNormalizer` + `StationNameNormalizerTest`
   - ③ `feat(transit): 지역·운영사·역 조회 유스케이스 구현` — repository(`JpaFareData`), 조회 유스케이스 3개, `TransitFacadeImpl` + `JpaFareDataTest`
   - ④ `feat(transit): 지역·운영사·역 조회 API 구현` — `StationController` + `StationControllerTest`
 
@@ -345,16 +347,15 @@ frontend/src/
 - Produces: `new FareEngine(FareData).price(List<LegInput>, Passengers) -> List<LegFare>` (입력과 같은 길이)
 
 계산 규칙(설계 문서 7-1):
-- `WALK` → OK, 0. `MANUAL` → MANUAL, `manualAdultAmount` 필수, 어린이는 `manualChildAmount` 없으면 운영사 규칙(`OTHER`는 HALF_CEIL_10).
-- `DISTANCE_BAND`: 같은 운영사 TRANSIT 구간이 연속(사이 WALK 무시)하면 각 구간 km(|누적 km 차|) 합으로 BASE 밴드 1회. 금액은 묶음 첫 구간, 나머지 0 + note "앞 구간과 합산". EXPRESS 구간들의 km 합으로 EXPRESS 밴드 → `expressAdult`. RESERVED면 `reservedSeatFee` 가산.
+- `WALK` → OK, 0. `MANUAL` → MANUAL, `manualAmount` 필수.
+- `DISTANCE_BAND`: 같은 운영사 TRANSIT 구간이 연속(사이 WALK 무시)하면 각 구간 km(|누적 km 차|) 합으로 BASE 밴드 1회. 금액은 묶음 첫 구간, 나머지 0 + note "앞 구간과 합산". EXPRESS 구간들의 km 합으로 EXPRESS 밴드 → `express`. RESERVED면 `reservedSeatFee` 가산.
 - `STATION_PAIR`: `pairFare(BASE)` (+EXPRESS면 `pairFare(EXPRESS)`). `FLAT_ZONE_PLUS_PAIR`: 같은 zone이면 zone 요금, 아니면 pair.
 - 조회 실패 → 그 구간(묶음 전체) UNKNOWN, 금액 0, note에 빠진 항목.
-- 어린이: `pair_fare.child_amount` 있으면 사용, 없으면 `ChildRounding`(HALF_CEIL_10 / HALF_FLOOR_10 / HALF_CEIL_1)으로 어른 금액에서. 특급·지정석도 각각.
 - 환승 할인: 직전 TRANSIT 운영사 → 다음 TRANSIT 운영사 쌍에 할인이 있으면 다음 구간 base에서 차감.
-- `partyTotal = (baseAdult+expressAdult+reservedAdult)*adults + (baseChild+expressChild+reservedChild)*children`.
+- `partyTotal = (base + express + reserved) * adults`.
 
 - [ ] **Step 1: 실패하는 테스트**(가상 데이터, 실제 요금 아님):
-  `walkLegIsFree`, `subwayTransferWithinOperatorChargedOnceByTotalDistance`(2.0km+2.0km, 사이 WALK, 밴드 3.0→210/7.0→260 → 260, 0+note), `differentOperatorBreaksDistanceGroup`(지하철2km+버스+지하철2km → 210 두 번), `jrExpressAddsExpressBandAndReservedFee`(30km, BASE 30→570, EXPRESS 50→760, 지정석 530), `jrLineChangeSumsKm`(35.7+20.0 → 55.7km 1회), `missingFareMarksUnknownNotZeroCharge`, `childFareRoundingPerOperator`(210 → CEIL 110 / FLOOR 100), `pairFareExplicitChildOverridesRounding`, `flatZoneUsedWhenBothInZone`, `pairFareUsedOutsideZone`, `transferDiscountSubtractedFromSecondLeg`, `childrenOnlyPartyTotal`(Passengers(0,2), 리뷰 포커스 1), `manualLegUsesGivenFare`
+  `walkLegIsFree`, `subwayTransferWithinOperatorChargedOnceByTotalDistance`(2.0km+2.0km, 사이 WALK, 밴드 3.0→210/7.0→260 → 260, 0+note), `differentOperatorBreaksDistanceGroup`(지하철2km+버스+지하철2km → 210 두 번), `jrExpressAddsExpressBandAndReservedFee`(30km, BASE 30→570, EXPRESS 50→760, 지정석 530), `jrLineChangeSumsKm`(35.7+20.0 → 55.7km 1회), `missingFareMarksUnknownNotZeroCharge`, `flatZoneUsedWhenBothInZone`, `pairFareUsedOutsideZone`, `transferDiscountSubtractedFromSecondLeg`, `partyTotalMultipliesByAdults`(Passengers(3)), `manualLegUsesGivenFare`
 - [ ] **Step 2:** `./gradlew test --tests '*FareEngineTest'` → FAIL → **Step 3:** 구현 → **Step 4:** PASS
 - [ ] **Step 5: 커밋** ② `feat(transit): 요금 계산 로직 구현` — `FareEngine` + `FareEngineTest` (①③④ 없음)
 
@@ -377,7 +378,7 @@ frontend/src/
 - `station_alias`(일본어 표기 변형), `operator_alias`(Google 운영사명 후보: "福岡市地下鉄", "JR九州", "西鉄バス" 등 — Task 12 실제 응답으로 보강)
 
 - [ ] **Step 1:** 조사 후 `V100` 작성(모든 행 `source_url`, `verified_on`).
-- [ ] **Step 2: 골든 테스트**(각 메서드 위 주석에 출처 URL): `subwayHakataToTenjin`, `subwayHakataToFukuokaAirport`, `subwayTransferAirportLineToNanakumaLine`(하카타→야쿠인), `subwayPlusJrHakataToChikuzenMaebaru`, `jrHakataToHitaLocal`, `jrHakataToHitaExpressReserved`, `jrHakataToUkiha`, `highwayBusHitaGoHakataToHita`, `nishitetsuBusInsideFlatZone`, `childFareJrHakataToHita`
+- [ ] **Step 2: 골든 테스트**(각 메서드 위 주석에 출처 URL): `subwayHakataToTenjin`, `subwayHakataToFukuokaAirport`, `subwayTransferAirportLineToNanakumaLine`(하카타→야쿠인), `subwayPlusJrHakataToChikuzenMaebaru`, `jrHakataToHitaLocal`, `jrHakataToHitaExpressReserved`, `jrHakataToUkiha`, `highwayBusHitaGoHakataToHita`, `nishitetsuBusInsideFlatZone`
 - [ ] **Step 3:** 1단계에서는 `./gradlew test`로 마이그레이션이 H2에 적용되는지만 확인(엔진이 아직 없으므로 골든은 제외됨). **Step 4:** `./gradlew goldenTest` 실행과 불일치 수정은 1차 합치기(Task M1)에서.
 - [ ] **Step 5: 커밋** `data(transit): 1단계 지역 요금 데이터 추가` → `test(transit): 1단계 지역 골든 테스트 추가`
 
@@ -392,7 +393,7 @@ frontend/src/
 
 **Interfaces:**
 - `TransitFacade.priceLegs(regionCode, legs, passengers) -> PricingResult`
-- `POST /api/v1/pricing` `{"regionCode":"JP-FUKUOKA","passengers":{"adults":2,"children":0},"legs":[LegInput...]}` → PricingResult
+- `POST /api/v1/pricing` `{"regionCode":"JP-FUKUOKA","passengers":{"adults":2},"legs":[LegInput...]}` → PricingResult
 - 검증: 음수 인원, 합계 0 → 400 "인원을 1명 이상 입력하세요". 다른 지역 운영사가 섞이면 400.
 
 - [ ] **Step 1: 실패하는 테스트** — `PriceLegsUseCaseTest`: `pricesLegsAndSumsParty`, `unknownLegSetsHasUnknown`, `operatorFromOtherRegionRejected`; `PricingControllerTest`: `zeroPassengersRejected`(400 메시지), `priceEndpointReturnsPricingResult`
@@ -410,7 +411,7 @@ frontend/src/
 - Test: `itinerary/usecase/TripUseCasesTest.java`, `itinerary/controller/TripControllerTest.java`
 
 **Interfaces:**
-- 테이블(`itinerary.`): `trip(id, region_code, name, start_date, end_date, lodging_place_id null, lodging_name null, adults, children, local_to_krw numeric(10,4) null, created_at)`, `segment(id, trip_id, travel_date, seq, origin_place_id null, origin_name, dest_place_id null, dest_name)`, `leg(id, segment_id, seq, mode, operator_code null, line_id null, from_station_id null, to_station_id null, train_class, seat_type, manual_adult_amount null, manual_child_amount null, memo null, google_line_name null, google_from_name null, google_to_name null)` — operator/line/station은 transit 모듈의 ID 값만(FK 없음).
+- 테이블(`itinerary.`): `trip(id, region_code, name, start_date, end_date, lodging_place_id null, lodging_name null, adults, local_to_krw numeric(10,4) null, created_at)`, `segment(id, trip_id, travel_date, seq, origin_place_id null, origin_name, dest_place_id null, dest_name)`, `leg(id, segment_id, seq, mode, operator_code null, line_id null, from_station_id null, to_station_id null, train_class, seat_type, manual_amount null, memo null, google_line_name null, google_from_name null, google_to_name null)` — operator/line/station은 transit 모듈의 ID 값만(FK 없음).
 - API: `GET/POST /api/v1/trips`, `GET/PUT/DELETE /api/v1/trips/{id}`, `POST /api/v1/trips/{id}/segments` `{travelDate, originPlaceId?, originName, destPlaceId?, destName, legs:[LegInput...]}`, `PUT/DELETE /api/v1/trips/{id}/segments/{segmentId}`, `POST .../segments/{segmentId}/move` `{direction:"UP"|"DOWN"}`.
 - 생성 시 `regionCode`는 `TransitFacade.getRegion`으로 존재 확인(없으면 400). 2차에서 시작하므로 실제 `TransitFacade`(시드 지역 `JP-FUKUOKA`) 사용. 검증: endDate<startDate 400, 구간 날짜가 기간 밖 400 "여행 기간 밖의 날짜입니다"(리뷰 포커스 4), 인원 검증은 Task 5와 같은 메시지. 좌표 저장 안 함.
 
@@ -426,29 +427,29 @@ frontend/src/
 ### Task 7: pass 모듈 — 승차권 상품과 최적화
 
 **Files:**
-- Create: `db/migration/pass/V1__pass_schema.sql`, (데이터 세션) `db/migration/pass/V100__pass_seed_products.sql`, `pass/domain/{TicketOptimizer,ProductSpec,ProductType}.java`, `pass/contract/*`, `pass/entity/*`, `pass/repository/*`, `pass/usecase/{ListProductsUseCase,OptimizeTicketsUseCase}.java`, `pass/PassFacadeImpl.java`, `pass/controller/ProductController.java`
+- Create: `db/migration/pass/V1__pass_schema.sql`, (데이터 세션) `db/migration/pass/V100__pass_seed_products.sql`, `pass/domain/{TicketOptimizer,ProductSpec}.java`, `pass/contract/*`, `pass/entity/*`, `pass/repository/*`, `pass/usecase/{ListProductsUseCase,OptimizeTicketsUseCase}.java`, `pass/PassFacadeImpl.java`, `pass/controller/ProductController.java`
 - Test: `pass/domain/TicketOptimizerTest.java`, `pass/usecase/OptimizeTicketsUseCaseTest.java`, `pass/controller/ProductControllerTest.java`
 
 **Interfaces:**
-- 테이블(`pass.`): `ticket_product(code PK, region_code, type 'PASS'|'FIXED_ROUTE', name_ja, name_ko, adult_price, child_price null, valid_days, consecutive_days, uses, covers_express, reserved_seat_limit, eligibility_note null, source_url, verified_on)`, `ticket_coverage(id, product_code, operator_code, line_id null, station_a_id null, station_b_id null)`
-- `ProductSpec(String code, ProductType type, int adultPrice, Integer childPrice, int validDays, int uses, boolean coversExpress, int reservedSeatLimit, List<Coverage> coverage)`, `Coverage(String operatorCode, Long lineId, Long stationAId, Long stationBId)`
+- 테이블(`pass.`): `ticket_product(code PK, region_code, type 'PASS'|'FIXED_ROUTE', name_ja, name_ko, price, valid_days, consecutive_days, uses, covers_express, reserved_seat_limit, eligibility_note null, source_url, verified_on)`, `ticket_coverage(id, product_code, operator_code, line_id null, station_a_id null, station_b_id null)`
+- `ProductSpec(String code, ProductType type, int price, int validDays, int uses, boolean coversExpress, int reservedSeatLimit, List<Coverage> coverage)`, `Coverage(String operatorCode, Long lineId, Long stationAId, Long stationBId)`
 - `TicketOptimizer.optimize(List<TicketLeg>, List<ProductSpec>, TicketParty) -> OptimizationResult` — 입력 타입은 `docs/contracts.md`의 pass 부분(transit 타입 사용 금지)
-- `GET /api/v1/products?region=` → `[{code,type,nameKo,nameJa,adultPrice,childPrice,validDays,eligibilityNote}]`
-- `PassFacade.optimize`는 overrides를 적용(`included=false` 제외, `adultPriceAmount`로 어른 가격 대체)한 ProductSpec으로 최적화.
+- `GET /api/v1/products?region=` → `[{code,type,nameKo,nameJa,price,validDays,eligibilityNote}]`(type은 `{code,label,description}`)
+- `PassFacade.optimize`는 overrides를 적용(`included=false` 제외, `priceAmount`로 가격 대체)한 ProductSpec으로 최적화.
 
 알고리즘(계획이 정함):
-- 어른·어린이 **따로** 최적화(같이 움직이므로 유형별 선택 동일). 인원 0인 유형은 건너뜀. `childPrice==null`은 어린이 최적화에서 제외.
+- 어른 1명 기준으로 최적화하고, 구매 수량 = 인원(`TicketParty.adults`). 총액 = 1명 기준 결과 × 인원.
 - 커버 판정: 구간 operator가 coverage와 일치하고, line/station 지정 시 그것도 일치(FIXED_ROUTE는 양 끝이 stationA/B 쌍, 방향 무관). `fareKnown=false` 구간은 커버 불가.
 - 절감: base 전액 + (`coversExpress`면 express 전액, reserved는 `reservedSeatLimit` 횟수까지).
 - 연속 거리제 묶음은 묶음 전 구간이 커버될 때만 절감.
 - 후보 구매 = PASS × 여행 각 날짜 시작 + FIXED_ROUTE × 1. **최대 3개 구매 조합 전수 탐색**(후보 > 60이면 단독 절감액 상위 60개). 구간마다 가장 큰 절감을 주는 구매에 배정(FIXED_ROUTE는 uses 한도, 첫 사용일부터 validDays). 총액 = 미커버 요금 + 구매가. 최소 선택, 동률이면 구매 수 적은 쪽. 다일 패스는 여행 끝을 넘어도 구매 가능.
 
-- [ ] **Step 1: 실패하는 테스트**(가상 데이터): `noProductCheaperKeepsBaseline`, `oneDayPassChosenWhenDaySpendExceedsPrice`, `threeDayPassCoversConsecutiveDaysOnly`, `passWithoutExpressDoesNotCoverExpressSurcharge`, `reservedSeatLimitRespected`(한도 2, 지정석 3개), `unknownLegNeverCovered`, `fixedRouteRoundTripCoversBothDirections`, `childPriceNullExcludesProductForChildren`, `adultsAndChildrenOptimizedSeparately`(2,1), `childrenOnlyUsesChildPrices`(0,2), `multiDayPassMayExtendPastTripEnd`, `distanceGroupCoveredOnlyWhenAllLegsCovered`; `OptimizeTicketsUseCaseTest`: `overrideExcludedProductIgnored`, `overridePriceReplacesAdultPrice`; `ProductControllerTest`: `listsProductsByRegion`
+- [ ] **Step 1: 실패하는 테스트**(가상 데이터): `noProductCheaperKeepsBaseline`, `oneDayPassChosenWhenDaySpendExceedsPrice`, `threeDayPassCoversConsecutiveDaysOnly`, `passWithoutExpressDoesNotCoverExpressSurcharge`, `reservedSeatLimitRespected`(한도 2, 지정석 3개), `unknownLegNeverCovered`, `fixedRouteRoundTripCoversBothDirections`, `purchaseCountEqualsAdults`(TicketParty(3)), `multiDayPassMayExtendPastTripEnd`, `distanceGroupCoveredOnlyWhenAllLegsCovered`; `OptimizeTicketsUseCaseTest`: `overrideExcludedProductIgnored`, `overridePriceReplacesOfficialPrice`; `ProductControllerTest`: `listsProductsByRegion`
 - [ ] **Step 2:** FAIL → **Step 3:** 구현 → **Step 4:** PASS
-- [ ] **Step 5 (데이터 세션):** `V100` 승차권 시드: SUNQ 패스 북큐슈(기간별), JR 큐슈 레일패스 북큐슈(기간별, eligibility_note "단기체류 외국인 전용"), 후쿠오카 지하철 1일 승차권, 니시테츠 버스 1일 승차권, 후쿠오카 투어리스트 시티 패스, 확인된 왕복권·회수권(히타호 등). coverage·가격·어린이 가격·특급/지정석 조건은 공식 자료로.
+- [ ] **Step 5 (데이터 세션):** `V100` 승차권 시드: SUNQ 패스 북큐슈(기간별), JR 큐슈 레일패스 북큐슈(기간별, eligibility_note "단기체류 외국인 전용"), 후쿠오카 지하철 1일 승차권, 니시테츠 버스 1일 승차권, 후쿠오카 투어리스트 시티 패스, 확인된 왕복권·회수권(히타호 등). coverage·가격(어른)·특급/지정석 조건은 공식 자료로.
 - [ ] **Step 6 (데이터 세션):** `GoldenFareTest`에 `sunqPassCoversHitaGo`, `jrPassCoversHakataHitaExpress` 작성 — `TransitFacade.priceLegs` 결과를 `docs/contracts.md`의 변환 표대로 `TicketLeg`로 바꿔 `PassFacade.optimize`에 넣는다(실행은 Task M1)
 - [ ] **Step 7: 커밋**
-  - pass 세션: ① `feat(pass): 승차권 상품 도메인 생성` — `V1`, entity → ② `feat(pass): 승차권 최적화 로직 구현` — `contract`(`TicketLeg`, `TicketParty`, `OptimizationResult`, `Purchase`), `TicketOptimizer`, `ProductSpec`, `ProductType` + `TicketOptimizerTest` → ③ `feat(pass): 승차권 상품·최적화 유스케이스 구현` — repository, 유스케이스 2개, `PassFacade`(인터페이스)·`PassFacadeImpl`, 나머지 `contract`(`ProductView`, `ProductOverride`) + `OptimizeTicketsUseCaseTest` → ④ `feat(pass): 승차권 상품 조회 API 구현` + `ProductControllerTest`
+  - pass 세션: ① `feat(pass): 승차권 상품 도메인 생성` — `V1`, entity → ② `feat(pass): 승차권 최적화 로직 구현` — `contract`(`TicketLeg`, `TicketParty`, `ProductType`, `OptimizationResult`, `Purchase`), `TicketOptimizer`, `ProductSpec`, `ProductType` + `TicketOptimizerTest` → ③ `feat(pass): 승차권 상품·최적화 유스케이스 구현` — repository, 유스케이스 2개, `PassFacade`(인터페이스)·`PassFacadeImpl`, 나머지 `contract`(`ProductView`, `ProductOverride`) + `OptimizeTicketsUseCaseTest` → ④ `feat(pass): 승차권 상품 조회 API 구현` + `ProductControllerTest`
   - 데이터 세션: `data(pass): 승차권 상품 데이터 추가` → `test(pass): 승차권 골든 테스트 추가`
 
 ---
@@ -464,18 +465,18 @@ frontend/src/
 - Consumes: `TransitFacade.priceLegs`, `TransitFacade.getRegion`, `PassFacade.listProducts`, `PassFacade.optimize` — 2차에서 시작하므로 실제 빈과 시드 데이터 사용. 금액 기대값은 골든 테스트 값 또는 `TransitFacade` 결과로 계산(하드코딩 금지).
 - `TicketLegMapper`: transit의 `LegInput`+`LegFare`+날짜 → ticket의 `TicketLeg`(`docs/contracts.md` 변환 표 그대로, WALK 제외). 인원은 `Passengers` → `TicketParty`.
 - 테이블: `itinerary.trip_product_setting(trip_id, product_code, included default true, purchase_price null, purchase_currency null)` — `purchase_currency`는 지역 통화 코드 또는 'KRW'
-- `GET /api/v1/trips/{id}/products` → `[{code,nameKo,officialAdultPrice,officialChildPrice,included,purchasePrice,purchaseCurrency,effectiveAdultPrice,eligibilityNote}]`
+- `GET /api/v1/trips/{id}/products` → `[{code,nameKo,officialPrice,included,purchasePrice,purchaseCurrency,effectivePrice,eligibilityNote}]`
 - `PUT /api/v1/trips/{id}/products/{code}` `{included, purchasePrice?, purchaseCurrency?}` — KRW인데 `local_to_krw` 없음 → 400 "환율을 먼저 입력하세요"(리뷰 포커스 3)
 - `GET /api/v1/trips/{id}/summary` →
   ```json
   {"currency":"JPY","localToKrw":9.2,
    "days":[{"date":"2026-01-15","segments":[{"segmentId":1,"legs":[LegFare...],"partyTotal":0,"hasUnknown":false}],"dayTotal":0}],
    "baselineTotal":0,"optimizedTotal":0,"savings":0,
-   "purchases":[{"productCode":"","nameKo":"","startDate":"","passengerType":"ADULT","count":2,"unitPrice":0}],
+   "purchases":[{"productCode":"","nameKo":"","startDate":"","count":2,"unitPrice":0}],
    "hasUnknown":false,"fareBasisNotes":["후쿠오카 지하철: IC카드 요금 기준"]}
   ```
   원화 환산은 프론트가 `localToKrw`로(서버는 환율만 전달).
-- 유효 구매가: KRW면 `round(price / localToKrw)` 현지 통화, 아니면 그대로, 없으면 공식가. 구매가는 어른 가격만 대체(어린이는 공식 어린이가 — 설계자 결정).
+- 유효 구매가: KRW면 `round(price / localToKrw)` 현지 통화, 아니면 그대로, 없으면 공식가.
 
 - [ ] **Step 1: 실패하는 테스트** — `TicketLegMapperTest`: `mapsExpressReservedAndAmounts`, `walkLegsExcluded`, `unknownAndManualLegsMarkedFareUnknown`, `keepsGroupIdForDistanceGroups`; `summaryGroupsByDayAndSums`, `excludedProductNotRecommended`, `purchasePriceOverridesOfficial`, `krwPurchasePriceConvertedWithTripRate`, `krwPurchaseWithoutRateRejected`, `unknownLegPropagatesHasUnknown`; `TripControllerTest`: `summaryEndpointReturnsSummary`, `updateProductSettingEndpoint`
 - [ ] **Step 2:** FAIL → **Step 3:** 구현 → **Step 4:** PASS
@@ -502,8 +503,8 @@ frontend/src/
 - [ ] **Step 2: 실패하는 테스트** — `Money`: `formatsLocalOnly`, `appendsKrwWhenRateGiven`; `SummaryPanel`: `showsUnknownWarning`, `showsSavingsAndPurchases`; `ManualLegForm`: `requiresAdultFare`
 - [ ] **Step 3:** `npx vitest run` FAIL
 - [ ] **Step 4: 구현** — 화면 동작:
-  - 여행 설정: 이름, 지역(현재 후쿠오카만), 기간(Mantine DatePicker), 숙소 이름, 어른/어린이, 환율(선택).
-  - 날짜별 일정과 `SegmentEditor`: 이 태스크에서는 "역 직접 선택"(운영사 → 역 검색 → 특급/보통·지정석/자유석 → `/api/v1/pricing` 미리보기, 탈것 여러 개)과 "요금 직접 입력"(운영사 '기타', 메모, 어른/어린이 금액) 두 모드.
+  - 여행 설정: 이름, 지역(현재 후쿠오카만), 기간(Mantine DatePicker), 숙소 이름, 인원, 환율(선택).
+  - 날짜별 일정과 `SegmentEditor`: 이 태스크에서는 "역 직접 선택"(운영사 → 역 검색 → 특급/보통·지정석/자유석 → `/api/v1/pricing` 미리보기, 탈것 여러 개)과 "요금 직접 입력"(운영사 '기타', 메모, 1인 금액) 두 모드.
   - 구간 요금 내역 펼치기(운임/특급/지정석). UNKNOWN은 "미확인" 경고 텍스트 + "역 다시 선택 / 요금 직접 입력".
   - `SummaryPanel`: 날짜별 합계, 개별 요금 합계, 추천 구매와 절약액, 미확인 경고, `fareBasisNotes`.
   - `ProductSettings`: "비교에 포함", "내 구매가"(현지 통화/원), 이용 조건. 원 선택 시 환율 없으면 안내 문구.
