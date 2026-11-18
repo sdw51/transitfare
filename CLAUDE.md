@@ -11,6 +11,7 @@
 ## 코드 스타일
 
 - Lombok: 의존성 주입은 `@RequiredArgsConstructor` + `private final` 필드. 엔티티는 `@Getter`, `@NoArgsConstructor(access = AccessLevel.PROTECTED)`, `@Builder`. 로그는 `@Slf4j`.
+- 엔티티: 클래스에 `@Table(schema = "모듈", name = "테이블")`, **모든 필드에 `@Column(name = "컬럼명")` 명시**, NOT NULL 컬럼은 `nullable = false`. id는 `@Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id")`, 연관은 `@JoinColumn(name = …)`, enum은 `@Enumerated(EnumType.STRING)` + `@Column`.
 - `@Setter`, `@Data`는 쓰지 않는다. 값 변경은 이름 있는 메서드로 (`itinerary.changePeriod(start, end)`).
 - 공개 DTO(`contract` 패키지)와 도메인 값 객체는 Java record.
 - `contract`의 enum은 한글 `label`·`description`을 가진다. 공통 인터페이스 없이 enum마다 `@JsonFormat(shape = OBJECT)`, `@JsonProperty("code") getCode()`, `@JsonCreator from(Object)`를 둔다(`docs/contracts.md`의 "코드 enum" 모양과 표). 응답은 `{code, label, description}`, 요청은 코드 문자열·객체 둘 다 허용, DB에는 코드만.

@@ -33,6 +33,7 @@
 - **어린이 요금은 다루지 않는다**(v1 비목표, 사용자 결정 2026-11-18). 금액은 어른 1명 기준, 어린이 컬럼·필드·테스트 없음.
 - **코드 enum:** `contract`의 enum은 한글 `label`·`description` 필드, `@JsonProperty("code") getCode()`, 코드 문자열과 객체를 둘 다 읽는 `@JsonCreator from(Object)`를 enum마다 직접 둔다(공통 인터페이스 없음, `docs/contracts.md`의 "코드 enum" 모양 그대로). 응답 JSON은 `{code, label, description}` 객체. 목록과 라벨은 `docs/contracts.md`의 표. DB에는 코드만(`EnumType.STRING`).
 - **에러 처리:** 모듈마다 `{module}/error/XxxErrorCode` enum(`ErrorCode` 구현: `HttpStatus status`, `String message`)에 에러를 모은다. 유스케이스는 `throw new BusinessException(ItineraryErrorCode.ITINERARY_OUT_OF_PERIOD, "travelDate")`. 응답은 HTTP 상태와 같은 값의 본문 `{"status":400,"code":"ITINERARY_OUT_OF_PERIOD","message":"여행 기간 밖의 날짜입니다","field":"travelDate"}`(`field`는 없으면 null). code 이름은 모듈 접두사(`TRANSIT_`, `PASS_`, `ITINERARY_`, `DIRECTIONS_`). `domain` 패키지는 Spring에 의존하지 않으므로 `BusinessException`을 던지지 않고, 유스케이스가 결과를 보고 던진다. 에러 테스트는 HTTP 상태와 `$.code`를 둘 다 확인. 아래 "에러 코드" 표의 코드는 그 코드를 처음 던지는 커밋에 추가.
+- **엔티티 매핑:** 엔티티의 모든 필드에 `@Column(name = "snake_case 컬럼명")`을 명시하고, DB에서 NOT NULL인 컬럼은 `nullable = false`. id는 `@Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id")`. 연관 필드는 `@JoinColumn(name = …)`, enum은 `@Enumerated(EnumType.STRING)`과 함께 `@Column`. 엔티티 클래스에는 `@Table(schema = "모듈", name = "테이블")`.
 - **Lombok:** `@RequiredArgsConstructor`(유스케이스·퍼사드 구현·컨트롤러·어댑터의 `final` 필드 주입), 엔티티에 `@Getter` + `@NoArgsConstructor(access = AccessLevel.PROTECTED)` + `@Builder`, 로그는 `@Slf4j`. **`@Setter`·`@Data`는 쓰지 않는다** — 값 변경은 이름 있는 메서드(`itinerary.changePeriod(start, end)`). 공개 DTO(`contract` 패키지)와 도메인 값 객체는 Java record.
 - **테스트 이름:** 메서드명은 계획에 적힌 영어 이름 그대로, 모든 테스트에 한글 `@DisplayName`(예: `@DisplayName("도보 구간은 요금이 0원이다") void walkLegIsFree()`). 프론트(Vitest)는 `it("도보 구간은 요금이 0원이다")`처럼 한글 설명.
 - **코드는 먼저 보여주고 작성:** 커밋 단위("커밋·브랜치 규칙"의 한 단계)로 테스트·구현 코드를 사용자에게 보여주고 승인받은 뒤 파일에 쓴다. 그래서 사용자와 대화할 수 없는 하위 에이전트에게 구현을 맡기지 않고, 각 세션이 직접 구현한다.
@@ -307,9 +308,9 @@ frontend/src/
   - `station(id, region_code, operator_code, name_ja, name_ko, source_url, verified_on)` — 같은 실제 역도 운영사별 별도 행
   - `line_station(line_id, station_id, cumulative_km numeric(6,1))`
   - `station_alias(id, station_id, alias)` (unique station_id+alias)
-  - `distance_fare_band(id, operator_code, kind 'BASE'|'EXPRESS', max_km numeric(6,1), adult_amount, source_url, verified_on)`
+  - `distance_fare_band(id, operator_code, kind 'BASE'|'EXPRESS', max_km numeric(6,1), amount, source_url, verified_on)`
   - `pair_fare(id, operator_code, station_a_id, station_b_id, kind 'BASE'|'EXPRESS', amount, source_url, verified_on)` — 양방향 동일
-  - `flat_zone(id, operator_code, adult_amount, source_url, verified_on)`, `flat_zone_station(zone_id, station_id)`
+  - `flat_zone(id, operator_code, amount, source_url, verified_on)`, `flat_zone_station(zone_id, station_id)`
   - `reserved_seat_fee(id, operator_code, amount, source_url, verified_on)`
   - `transfer_discount(id, from_operator_code, to_operator_code, discount, note, source_url, verified_on)`
 - `FareData`(domain 인터페이스 — JPA 타입 노출 금지):
