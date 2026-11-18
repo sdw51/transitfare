@@ -13,6 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 균일 구간: 구간 안 두 정류장 사이는 고정 요금 */
 @Entity
 @Table(schema = "transit", name = "flat_zone")
 @Getter

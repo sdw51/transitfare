@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 지역(나라·도시 단위). 통화와 시간대를 가진다 */
 @Entity
 @Table(schema = "transit", name = "region")
 @Getter

@@ -13,6 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 역 쌍 요금(양방향 동일). 거리제 운영사에서는 특정 구간 예외로 밴드보다 먼저 쓴다 */
 @Entity
 @Table(schema = "transit", name = "pair_fare")
 @Getter

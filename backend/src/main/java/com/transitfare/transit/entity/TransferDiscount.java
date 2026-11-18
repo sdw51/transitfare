@@ -13,6 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 회사 간 환승 할인: from → to로 갈아탈 때 두 번째 구간에서 빼는 금액 */
 @Entity
 @Table(schema = "transit", name = "transfer_discount")
 @Getter

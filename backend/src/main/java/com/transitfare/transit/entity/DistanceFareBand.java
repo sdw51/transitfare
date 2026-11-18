@@ -14,6 +14,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 거리 구간 요금: max_km 이하 거리의 운임(BASE) 또는 특급요금(EXPRESS) */
 @Entity
 @Table(schema = "transit", name = "distance_fare_band")
 @Getter

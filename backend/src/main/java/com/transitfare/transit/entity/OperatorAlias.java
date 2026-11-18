@@ -12,6 +12,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 운영사 다른 이름(Google 경로의 agency 이름). 역 매칭에서 정확히 일치로 찾는다 */
 @Entity
 @Table(schema = "transit", name = "operator_alias")
 @Getter

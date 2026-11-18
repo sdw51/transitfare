@@ -13,6 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 역·정류장. 같은 실제 역도 운영사별로 따로 둔다 */
 @Entity
 @Table(schema = "transit", name = "station")
 @Getter

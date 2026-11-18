@@ -13,6 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 운영사. 요금 계산 방식(fareRuleType)과 요금 기준 설명을 가진다 */
 @Entity
 @Table(schema = "transit", name = "operator")
 @Getter

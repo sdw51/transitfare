@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 균일 구간에 속한 정류장 */
 @Entity
 @Table(schema = "transit", name = "flat_zone_station")
 @Getter

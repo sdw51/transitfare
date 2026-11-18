@@ -12,6 +12,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 역 다른 이름(표기 변형, Google 정류장 이름) */
 @Entity
 @Table(schema = "transit", name = "station_alias")
 @Getter

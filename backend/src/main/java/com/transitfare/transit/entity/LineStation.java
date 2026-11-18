@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 노선에 속한 역과 그 노선 기점부터의 누적 km */
 @Entity
 @Table(schema = "transit", name = "line_station")
 @Getter

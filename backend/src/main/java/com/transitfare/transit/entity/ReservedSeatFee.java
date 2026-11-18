@@ -13,6 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/** 지정석 요금(1회 승차당) */
 @Entity
 @Table(schema = "transit", name = "reserved_seat_fee")
 @Getter
