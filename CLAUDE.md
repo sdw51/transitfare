@@ -12,7 +12,7 @@
 
 - Lombok: 의존성 주입은 `@RequiredArgsConstructor` + `private final` 필드. 엔티티는 `@Getter`, `@NoArgsConstructor(access = AccessLevel.PROTECTED)`, `@Builder`. 로그는 `@Slf4j`.
 - 엔티티: 클래스에 `@Table(schema = "모듈", name = "테이블")`, **모든 필드에 `@Column(name = "컬럼명")` 명시**, NOT NULL 컬럼은 `nullable = false`. id는 `@Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id")`, 연관은 `@JoinColumn(name = …)`, enum은 `@Enumerated(EnumType.STRING)` + `@Column`.
-- **컨트롤러는 자기 모듈의 퍼사드만 부른다**(유스케이스·리포지토리를 직접 부르지 않음). 화면에서만 쓰는 기능도 퍼사드에 메서드를 둔다. 예외: `admin` 컨트롤러의 단순 CRUD는 자기 모듈 리포지토리를 직접 쓴다.
+- **컨트롤러는 자기 모듈의 퍼사드만 부른다**(유스케이스·리포지토리를 직접 부르지 않음). 화면에서만 쓰는 기능도 퍼사드에 메서드를 둔다. **예외 없음** — 관리자 화면(`admin` 컨트롤러)은 관리 전용 퍼사드 `XxxAdminFacade` → 유스케이스 → 리포지토리로 간다. `XxxAdminFacade`는 자기 모듈의 `admin` 컨트롤러만 쓰고, 다른 모듈은 쓰지 않는다. CRUD 공통 클래스는 두지 않고 유스케이스를 직접 작성한다.
 - `@Setter`, `@Data`는 쓰지 않는다. 값 변경은 이름 있는 메서드로 (`itinerary.changePeriod(start, end)`).
 - 공개 DTO(`contract` 패키지)와 도메인 값 객체는 Java record.
 - `contract`의 enum은 한글 `label`·`description`을 가진다. 공통 인터페이스 없이 enum마다 `@JsonFormat(shape = OBJECT)`, `@JsonProperty("code") getCode()`, `@JsonCreator from(Object)`를 둔다(`docs/contracts.md`의 "코드 enum" 모양과 표). 응답은 `{code, label, description}`, 요청은 코드 문자열·객체 둘 다 허용, DB에는 코드만.

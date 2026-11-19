@@ -20,7 +20,7 @@
 - 데이터에 없는 요금은 0으로 계산하지 않는다. 상태 `UNKNOWN`("미확인")으로 표시하고 총액에 "미확인 구간 포함" 경고.
 - 모든 요금·승차권 시드 값에 `source_url`, `verified_on`을 기록한다. 확인 못 한 값은 넣지 않는다.
 - **모듈 간 계약은 `docs/contracts.md`가 원본.** 0단계에서 계약 코드를 만들지 않는다. 각 모듈 세션이 자기 `contract` 타입과 퍼사드를 이 문서대로 만들고, 프론트는 `api/types.ts`를 이 문서로 작성. 다르게 바꿔야 하면 문서를 먼저 고치고 `[contract]`. **pass는 transit을 모른다** — 입력은 자체 타입 `TicketLeg`·`TicketParty`, transit 결과 변환은 trip 담당.
-- **컨트롤러 → 퍼사드 (사용자 결정 2026-11-19):** 모든 모듈의 컨트롤러는 자기 모듈의 퍼사드만 부른다. itinerary도 `ItineraryFacade`를 둔다(자기 컨트롤러 전용). 예외는 `admin` 단순 CRUD(자기 리포지토리 직접). 컨트롤러 주석에는 누가·언제 부르는지와 저장/조회 여부(CLAUDE.md).
+- **컨트롤러 → 퍼사드 (사용자 결정 2026-11-19):** 모든 모듈의 컨트롤러는 자기 모듈의 퍼사드만 부른다. itinerary도 `ItineraryFacade`를 둔다(자기 컨트롤러 전용). **예외 없음:** 관리자 컨트롤러는 관리 전용 퍼사드 `XxxAdminFacade`(자기 모듈 `admin` 컨트롤러 전용, 다른 모듈 사용 금지)를 거친다. CRUD 공통 클래스는 두지 않는다(사용자 결정). 컨트롤러 주석에는 누가·언제 부르는지와 저장/조회 여부(CLAUDE.md).
 - **모듈 경계:** 모듈 밖에서는 그 모듈의 `XxxFacade`와 `contract` 패키지(공개 DTO)만 참조한다. 모듈 간에는 ID 값만 저장하고 FK·JOIN 금지. ArchUnit 테스트로 강제.
 - **DB 스키마:** `transit`, `pass`, `itinerary`, `directions`. 마이그레이션 SQL은 H2와 PostgreSQL 모두에서 동작하는 문법만.
 - **모듈별 Flyway:** 모듈마다 독립된 Flyway(자기 스키마, 자기 `flyway_schema_history`, 자기 폴더 `db/migration/{module}`). 버전 번호는 모듈 안에서만 유일. 같은 모듈에 두 세션이 마이그레이션을 추가할 때는 아래 번호 범위를 지킨다. 커밋된 마이그레이션은 수정 금지.
@@ -176,7 +176,7 @@ main  ← 완성본. Task 1 커밋과 Task 19의 최종 머지만 들어간다
 
 ## 모듈과 파일 구조
 
-모든 모듈은 같은 내부 구조를 따른다(관리자 CRUD는 `admin` 하위 패키지에서 자기 모듈의 리포지토리를 직접 사용 — 유스케이스로 쪼개지 않음).
+모든 모듈은 같은 내부 구조를 따른다(관리자 CRUD도 `admin` 컨트롤러 → `XxxAdminFacade` → `usecase/admin/` 유스케이스 → 리포지토리).
 
 ```
 backend/src/main/java/com/transitfare/
@@ -606,7 +606,7 @@ interface RouteProvider { List<RouteCandidate> findRoutes(PlaceRef origin, Place
 ### Task 13: transit 모듈 — 쇼와 버스 GTFS 요금 가져오기
 
 **Files:**
-- Create: `transit/usecase/ImportGtfsFaresUseCase.java`, `transit/admin/GtfsImportController.java`
+- Create: `transit/usecase/ImportGtfsFaresUseCase.java`, `transit/TransitAdminFacade.java`·`TransitAdminFacadeImpl`(`importGtfsFares` — 관리 퍼사드의 첫 메서드), `transit/admin/GtfsImportController.java`(→ `TransitAdminFacade`)
 - Test: `transit/usecase/ImportGtfsFaresUseCaseTest.java`(작은 GTFS zip 픽스처), `transit/admin/GtfsImportControllerTest.java`
 
 **Interfaces:**
@@ -665,7 +665,7 @@ interface RouteProvider { List<RouteCandidate> findRoutes(PlaceRef origin, Place
 - Test: `transit/admin/TransitAdminControllerTest.java`, `directions/admin/DirectionsAdminControllerTest.java`, `components/admin/ResourceTable.test.tsx`
 
 **Interfaces:**
-- 각 모듈 admin 컨트롤러는 **자기 모듈 리포지토리만** 사용(ArchitectureTest 통과). 
+- 각 모듈 admin 컨트롤러는 **관리 전용 퍼사드** `TransitAdminFacade`·`PassAdminFacade`·`DirectionsAdminFacade`만 부르고, 퍼사드 뒤에 `usecase/admin/` 유스케이스(리소스마다 목록·추가·수정·삭제, 공통 클래스 없이 직접 작성)를 둔다. ArchitectureTest에 `adminFacadeUsedOnlyByOwnAdminControllers`(다른 모듈·일반 컨트롤러가 `*AdminFacade`를 쓰면 실패)와 `controllersDoNotUseRepositoriesOrUseCases` 추가. 커밋은 리소스 묶음마다 ③ 유스케이스·관리 퍼사드 → ④ 관리 API.
   - `GET|POST /api/v1/admin/transit/{resource}`, `PUT|DELETE /api/v1/admin/transit/{resource}/{id}` — resource ∈ `stations, station-aliases, operator-aliases, line-stations, distance-bands, pair-fares, flat-zones, reserved-seat-fees, transfer-discounts`. 요금 계열은 `sourceUrl`, `verifiedOn` 필수(400 "출처와 확인 날짜를 입력하세요").
   - `GET|POST|PUT|DELETE /api/v1/admin/pass/{products|coverage}[/{id}]` — 같은 출처 규칙.
   - `GET /api/v1/admin/directions/match-failures`(count 내림차순), `DELETE .../match-failures/{id}`, `GET /api/v1/admin/directions/fare-mismatches`(최신순), `DELETE .../fare-mismatches/{id}`.
