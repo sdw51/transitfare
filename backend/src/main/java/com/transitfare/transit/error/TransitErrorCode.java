@@ -9,7 +9,9 @@ import org.springframework.http.HttpStatus;
 @Getter
 @RequiredArgsConstructor
 public enum TransitErrorCode implements ErrorCode {
-    TRANSIT_REGION_NOT_FOUND(HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다");
+    TRANSIT_REGION_NOT_FOUND(HttpStatus.NOT_FOUND, "지역을 찾을 수 없습니다"),
+    TRANSIT_INVALID_PASSENGERS(HttpStatus.BAD_REQUEST, "인원을 1명 이상 입력하세요"),
+    TRANSIT_OPERATOR_REGION_MISMATCH(HttpStatus.BAD_REQUEST, "다른 지역의 운영사가 섞여 있습니다");
 
     private final HttpStatus status;
     private final String message;

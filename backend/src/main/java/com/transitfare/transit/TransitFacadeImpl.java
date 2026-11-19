@@ -1,10 +1,14 @@
 package com.transitfare.transit;
 
+import com.transitfare.transit.contract.LegInput;
 import com.transitfare.transit.contract.OperatorView;
+import com.transitfare.transit.contract.Passengers;
+import com.transitfare.transit.contract.PricingResult;
 import com.transitfare.transit.contract.RegionView;
 import com.transitfare.transit.contract.StationView;
 import com.transitfare.transit.usecase.GetRegionUseCase;
 import com.transitfare.transit.usecase.ListOperatorsUseCase;
+import com.transitfare.transit.usecase.PriceLegsUseCase;
 import com.transitfare.transit.usecase.SearchStationsUseCase;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +19,18 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TransitFacadeImpl implements TransitFacade {
 
+    private final PriceLegsUseCase priceLegsUseCase;
     private final SearchStationsUseCase searchStationsUseCase;
     private final ListOperatorsUseCase listOperatorsUseCase;
     private final GetRegionUseCase getRegionUseCase;
+
+    /**
+     * {@link PriceLegsUseCase}: 인원·지역·운영사 지역을 확인하고, 요금 계산 엔진으로 구간별 요금을 구해 일행 총액을 더한다
+     */
+    @Override
+    public PricingResult priceLegs(String regionCode, List<LegInput> legs, Passengers passengers) {
+        return priceLegsUseCase.execute(regionCode, legs, passengers);
+    }
 
     /** {@link SearchStationsUseCase}: 이름·별칭 부분 일치로 역을 찾고 각 역의 노선을 붙인다 */
     @Override
