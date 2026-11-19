@@ -12,6 +12,7 @@
 
 - Lombok: 의존성 주입은 `@RequiredArgsConstructor` + `private final` 필드. 엔티티는 `@Getter`, `@NoArgsConstructor(access = AccessLevel.PROTECTED)`, `@Builder`. 로그는 `@Slf4j`.
 - 엔티티: 클래스에 `@Table(schema = "모듈", name = "테이블")`, **모든 필드에 `@Column(name = "컬럼명")` 명시**, NOT NULL 컬럼은 `nullable = false`. id는 `@Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "id")`, 연관은 `@JoinColumn(name = …)`, enum은 `@Enumerated(EnumType.STRING)` + `@Column`.
+- **컨트롤러는 자기 모듈의 퍼사드만 부른다**(유스케이스·리포지토리를 직접 부르지 않음). 화면에서만 쓰는 기능도 퍼사드에 메서드를 둔다. 예외: `admin` 컨트롤러의 단순 CRUD는 자기 모듈 리포지토리를 직접 쓴다.
 - `@Setter`, `@Data`는 쓰지 않는다. 값 변경은 이름 있는 메서드로 (`itinerary.changePeriod(start, end)`).
 - 공개 DTO(`contract` 패키지)와 도메인 값 객체는 Java record.
 - `contract`의 enum은 한글 `label`·`description`을 가진다. 공통 인터페이스 없이 enum마다 `@JsonFormat(shape = OBJECT)`, `@JsonProperty("code") getCode()`, `@JsonCreator from(Object)`를 둔다(`docs/contracts.md`의 "코드 enum" 모양과 표). 응답은 `{code, label, description}`, 요청은 코드 문자열·객체 둘 다 허용, DB에는 코드만.
@@ -19,6 +20,7 @@
 - 주석(한글 Javadoc):
   - **유스케이스:** 클래스에 한 줄(어떤 사용자 행동인지), `execute` 등 public 메서드마다 무엇을 하는지·입력·결과·던지는 에러 코드.
   - **퍼사드:** 인터페이스와 구현의 메서드마다 무엇을 하는지와 **연결된 유스케이스와 그 유스케이스가 하는 일**(`{@link PriceLegsUseCase}`: 구간 목록을 받아 운영사별 요금 규칙으로 계산…).
+  - **컨트롤러(REST API):** 클래스 주석에 누가 부르는지(프론트 어느 화면, 다른 모듈은 HTTP가 아니라 퍼사드로 부른다는 점)와 저장하는지·조회만 하는지. 메서드 주석에 "언제:" 단락(사용자의 어떤 행동 중에 불리는지)과 연결된 퍼사드 메서드·유스케이스가 하는 일.
   - **domain:** 계산 규칙 메서드마다 규칙 요약(설계 문서 7-1장의 어느 규칙인지). 코드만 봐서 알기 어려운 분기에는 줄 주석.
 - 테스트: 메서드명은 영어(계획에 적힌 이름), 모든 테스트에 한글 `@DisplayName("도보 구간은 요금이 0원이다")`. 프론트는 `it("…")`에 한글 설명.
 

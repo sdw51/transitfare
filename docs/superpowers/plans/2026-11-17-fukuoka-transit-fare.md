@@ -20,6 +20,7 @@
 - 데이터에 없는 요금은 0으로 계산하지 않는다. 상태 `UNKNOWN`("미확인")으로 표시하고 총액에 "미확인 구간 포함" 경고.
 - 모든 요금·승차권 시드 값에 `source_url`, `verified_on`을 기록한다. 확인 못 한 값은 넣지 않는다.
 - **모듈 간 계약은 `docs/contracts.md`가 원본.** 0단계에서 계약 코드를 만들지 않는다. 각 모듈 세션이 자기 `contract` 타입과 퍼사드를 이 문서대로 만들고, 프론트는 `api/types.ts`를 이 문서로 작성. 다르게 바꿔야 하면 문서를 먼저 고치고 `[contract]`. **pass는 transit을 모른다** — 입력은 자체 타입 `TicketLeg`·`TicketParty`, transit 결과 변환은 trip 담당.
+- **컨트롤러 → 퍼사드 (사용자 결정 2026-11-19):** 모든 모듈의 컨트롤러는 자기 모듈의 퍼사드만 부른다. itinerary도 `ItineraryFacade`를 둔다(자기 컨트롤러 전용). 예외는 `admin` 단순 CRUD(자기 리포지토리 직접). 컨트롤러 주석에는 누가·언제 부르는지와 저장/조회 여부(CLAUDE.md).
 - **모듈 경계:** 모듈 밖에서는 그 모듈의 `XxxFacade`와 `contract` 패키지(공개 DTO)만 참조한다. 모듈 간에는 ID 값만 저장하고 FK·JOIN 금지. ArchUnit 테스트로 강제.
 - **DB 스키마:** `transit`, `pass`, `itinerary`, `directions`. 마이그레이션 SQL은 H2와 PostgreSQL 모두에서 동작하는 문법만.
 - **모듈별 Flyway:** 모듈마다 독립된 Flyway(자기 스키마, 자기 `flyway_schema_history`, 자기 폴더 `db/migration/{module}`). 버전 번호는 모듈 안에서만 유일. 같은 모듈에 두 세션이 마이그레이션을 추가할 때는 아래 번호 범위를 지킨다. 커밋된 마이그레이션은 수정 금지.
@@ -203,7 +204,7 @@ backend/src/main/java/com/transitfare/
 │  ├─ controller/          ProductController
 │  └─ admin/               PassAdminController
 ├─ itinerary/
-│  ├─ (퍼사드 없음 — 다른 모듈이 itinerary를 쓰지 않음)
+│  ├─ ItineraryFacade.java (자기 컨트롤러 전용 — 다른 모듈은 쓰지 않음)
 │  ├─ contract/            TripDto, SegmentDto, SummaryDto, ProductSettingDto
 │  ├─ usecase/             CreateTripUseCase, UpdateTripUseCase, DeleteTripUseCase, ListTripsUseCase, GetTripUseCase,
 │  │                       AddSegmentUseCase, UpdateSegmentUseCase, DeleteSegmentUseCase, MoveSegmentUseCase,
@@ -422,8 +423,8 @@ frontend/src/
 - [ ] **Step 2:** FAIL → **Step 3:** 구현 → **Step 4:** PASS
 - [ ] **Step 5: 커밋** (계산 로직 없음)
   - ① `feat(itinerary): 여행·일정 도메인 생성` — `V1`, entity
-  - ③ `feat(itinerary): 여행·일정 저장 유스케이스 구현` — repository, 유스케이스 9개 + `TripUseCasesTest`
-  - ④ `feat(itinerary): 여행·일정 API 구현` — `TripController` + `TripControllerTest`
+  - ③ `feat(itinerary): 여행·일정 저장 유스케이스 구현` — repository, 유스케이스 9개, `ItineraryFacade`·`ItineraryFacadeImpl` + `TripUseCasesTest`
+  - ④ `feat(itinerary): 여행·일정 API 구현` — `TripController`(→ `ItineraryFacade`) + `TripControllerTest`
 
 ---
 

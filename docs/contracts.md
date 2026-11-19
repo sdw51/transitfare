@@ -1,6 +1,6 @@
 # 모듈 간 계약
 
-다른 모듈과 프론트가 보는 것은 각 모듈의 **퍼사드**(`{module}/XxxFacade`)와 **`contract` 패키지**(주고받는 데이터 모양)뿐이다. 이 문서가 그 약속의 원본이다.
+다른 모듈과 프론트가 보는 것은 각 모듈의 **퍼사드**(모듈 밖의 유일한 입구. 자기 모듈의 컨트롤러도 퍼사드만 부른다)(`{module}/XxxFacade`)와 **`contract` 패키지**(주고받는 데이터 모양)뿐이다. 이 문서가 그 약속의 원본이다.
 
 - 0단계에서는 코드로 만들지 않는다. **각 모듈 세션이 자기 `contract` 타입과 퍼사드를 이 문서대로 만든다.**
 - 프론트 `frontend/src/api/types.ts`는 프론트 세션이 이 문서를 보고 TypeScript로 옮긴다(필드 이름 동일).
@@ -225,7 +225,7 @@ public interface DirectionsFacade {
 
 ## itinerary (`com.transitfare.itinerary`)
 
-다른 모듈이 itinerary를 쓰지 않으므로 퍼사드는 만들지 않는다. `contract` 패키지에는 itinerary REST API가 주고받는 모양(`TripDto`, `SegmentDto`, `SummaryDto`, `ProductSettingDto`)을 둔다 — 구현 계획 Task 6, 8 참고.
+다른 모듈은 itinerary를 쓰지 않는다. 그래도 **컨트롤러는 퍼사드만 부른다**는 규칙에 따라 `ItineraryFacade`를 두고, 자기 컨트롤러(`TripController`)만 쓴다. 메서드는 Task 6, 8의 API와 1:1(여행·일정 CRUD, 승차권 설정, 요약)이며 itinerary 세션이 정한다. `contract` 패키지에는 itinerary REST API가 주고받는 모양(`TripDto`, `SegmentDto`, `SummaryDto`, `ProductSettingDto`)을 둔다 — 구현 계획 Task 6, 8 참고.
 
 ### itinerary가 하는 변환 (LegInput + LegFare → TicketLeg)
 
