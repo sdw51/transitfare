@@ -2,7 +2,13 @@ package com.transitfare.seed;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.transitfare.pass.PassFacade;
+import com.transitfare.pass.contract.OptimizationResult;
+import com.transitfare.pass.contract.Purchase;
+import com.transitfare.pass.contract.TicketLeg;
+import com.transitfare.pass.contract.TicketParty;
 import com.transitfare.transit.TransitFacade;
+import com.transitfare.transit.contract.FareStatus;
 import com.transitfare.transit.contract.LegFare;
 import com.transitfare.transit.contract.LegInput;
 import com.transitfare.transit.contract.LegMode;
@@ -12,6 +18,8 @@ import com.transitfare.transit.contract.PricingResult;
 import com.transitfare.transit.contract.SeatType;
 import com.transitfare.transit.contract.StationView;
 import com.transitfare.transit.contract.TrainClass;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +44,11 @@ class GoldenFareTest {
 
     @Autowired
     TransitFacade transitFacade;
+
+    @Autowired
+    PassFacade passFacade;
+
+    private int nextGroupOffset = 1;
 
     // https://subway.city.fukuoka.lg.jp/fare/futuken/ — 1구간(3km까지) 210엔. 博多~天神 2.5km
     // https://subway.city.fukuoka.lg.jp/fare/pdf/subwayA4Side.pdf — 역간 영업거리
@@ -155,6 +168,54 @@ class GoldenFareTest {
         assertThat(result.partyTotal()).isEqualTo(150);
     }
 
+    // https://www.sunqpass.jp/information/info/2024-09-09/JP_20241001price.pdf — SUNQ 북큐슈 3일권(디지털) 10,000엔
+    // https://www.sunqpass.jp/area/ — 북큐슈 구역 노선 "福岡･福岡空港～日田"(히타호) 포함
+    // https://www.nishitetsu.jp/bus/highwaybus/rosen/hita/ — 博多BT~日田BT 1,980엔
+    //   3일 동안 매일 히타호 왕복: 개별 1,980 × 6 = 11,880엔 > SUNQ 10,000엔
+    @Test
+    @DisplayName("히타호를 3일 연속 왕복하면 SUNQ 3일권이 추천되고 10,000엔이 된다")
+    void sunqPassCoversHitaGo() {
+        LocalDate day1 = LocalDate.of(2026, 12, 1);
+        List<TicketLeg> legs = new ArrayList<>();
+        for (int day = 0; day < 3; day++) {
+            LocalDate date = day1.plusDays(day);
+            legs.addAll(ticketLegs(date, ride(HIGHWAY_BUS, null, "博多バスターミナル", "日田バスターミナル")));
+            legs.addAll(ticketLegs(date, ride(HIGHWAY_BUS, null, "日田バスターミナル", "博多バスターミナル")));
+        }
+
+        OptimizationResult result = passFacade.optimize(REGION, legs, new TicketParty(1), List.of());
+
+        assertThat(result.baselineTotal()).isEqualTo(11_880);
+        assertThat(result.optimizedTotal()).isEqualTo(10_000);
+        assertThat(result.purchases()).extracting(Purchase::productCode).containsExactly("SUNQ_NORTH_3DAY");
+    }
+
+    // https://www.jrkyushu.co.jp/english/railpass/railpass.html — JR 큐슈 레일패스 북큐슈 3일 15,000엔,
+    //   특급 포함, 무료 지정석 6회(Northern Kyushu "Up to 6 times")
+    //   3일 동안 매일 하카타↔히타 특급 지정석 왕복: 3,660 × 6 = 21,960엔, 지정석 6회 → 패스 15,000엔
+    @Test
+    @DisplayName("하카타↔히타 특급 지정석을 3일 왕복하면 JR 큐슈 레일패스 북큐슈 3일권이 특급·지정석까지 커버한다")
+    void jrPassCoversHakataHitaExpress() {
+        LocalDate day1 = LocalDate.of(2026, 12, 1);
+        List<TicketLeg> legs = new ArrayList<>();
+        for (int day = 0; day < 3; day++) {
+            LocalDate date = day1.plusDays(day);
+            legs.addAll(ticketLegs(date,
+                    express(JR, "가고시마본선", "博多", "久留米"),
+                    express(JR, "규다이본선", "久留米", "日田")));
+            legs.addAll(ticketLegs(date,
+                    express(JR, "규다이본선", "日田", "久留米"),
+                    express(JR, "가고시마본선", "久留米", "博多")));
+        }
+
+        OptimizationResult result = passFacade.optimize(REGION, legs, new TicketParty(1), List.of());
+
+        assertThat(result.baselineTotal()).isEqualTo(21_960);
+        assertThat(result.optimizedTotal()).isEqualTo(15_000);
+        assertThat(result.purchases()).extracting(Purchase::productCode)
+                .containsExactly("JR_KYUSHU_RAIL_PASS_NORTH_3DAY");
+    }
+
     private PricingResult price(LegInput... legs) {
         return transitFacade.priceLegs(REGION, List.of(legs), new Passengers(1));
     }
@@ -192,5 +253,28 @@ class GoldenFareTest {
 
     private int sum(PricingResult result, ToIntFunction<LegFare> amount) {
         return result.legs().stream().mapToInt(amount).sum();
+    }
+
+    /** 같은 날의 한 번 이동(편도)을 요금 계산해 TicketLeg로 바꾼다. 변환은 docs/contracts.md의 itinerary 변환 표 그대로. */
+    private List<TicketLeg> ticketLegs(LocalDate date, LegInput... inputs) {
+        PricingResult priced = price(inputs);
+        // groupId는 priceLegs 호출마다 새로 매겨지므로, 여러 번 호출한 결과를 합칠 때 겹치지 않게 호출마다 다른 값으로 바꾼다
+        int groupOffset = nextGroupOffset++ * 1000;
+        List<TicketLeg> legs = new ArrayList<>();
+        for (int i = 0; i < inputs.length; i++) {
+            LegInput input = inputs[i];
+            LegFare fare = priced.legs().get(i);
+            if (input.mode() == LegMode.WALK) {
+                continue;
+            }
+            legs.add(new TicketLeg(date, input.operatorCode(), input.lineId(),
+                    input.fromStationId(), input.toStationId(),
+                    input.trainClass() == TrainClass.EXPRESS,
+                    input.seatType() == SeatType.RESERVED,
+                    fare.status() == FareStatus.OK,
+                    fare.base(), fare.express(), fare.reserved(),
+                    fare.groupId() == null ? null : groupOffset + fare.groupId()));
+        }
+        return legs;
     }
 }
