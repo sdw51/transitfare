@@ -1,16 +1,18 @@
 package com.transitfare.transit;
 
 import com.transitfare.transit.contract.LegInput;
+import com.transitfare.transit.contract.MatchedLeg;
 import com.transitfare.transit.contract.OperatorView;
 import com.transitfare.transit.contract.Passengers;
 import com.transitfare.transit.contract.PricingResult;
 import com.transitfare.transit.contract.RegionView;
 import com.transitfare.transit.contract.StationView;
+import com.transitfare.transit.contract.StepToMatch;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * transit 모듈의 유일한 공개 진입점. 다른 모듈(itinerary, directions)은 이 인터페이스와 contract 패키지만 쓴다.
- * 메서드는 태스크가 진행되며 늘어난다: matchStep(Task 10-A).
  */
 public interface TransitFacade {
 
@@ -29,4 +31,10 @@ public interface TransitFacade {
 
     /** 지역 정보(이름·통화·시간대). 없는 지역이면 TRANSIT_REGION_NOT_FOUND */
     RegionView getRegion(String regionCode);
+
+    /**
+     * Google 경로의 탑승 단계(운영사·정류장 이름)를 우리 운영사·노선·역으로 매칭한다.
+     * 못 찾으면 빈 값(에러 없음) — 부르는 쪽(directions)이 그 구간을 요금 미확인으로 두고 후보는 유지한다.
+     */
+    Optional<MatchedLeg> matchStep(String regionCode, StepToMatch step);
 }

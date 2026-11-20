@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 /** 역·정류장 */
 public interface StationRepository extends JpaRepository<Station, Long> {
 
+    /** 운영사의 모든 역(id 순) */
+    List<Station> findByOperatorCodeOrderById(String operatorCode);
+
     /**
      * 역 검색: 지역 안에서(운영사가 주어지면 그 운영사만) 일본어 이름·한국어 이름·별칭 중 하나라도
      * pattern(소문자, %…% 형태)을 포함하는 역. 대소문자 무시, id 순, limit개까지.

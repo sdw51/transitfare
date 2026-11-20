@@ -1,16 +1,20 @@
 package com.transitfare.transit;
 
 import com.transitfare.transit.contract.LegInput;
+import com.transitfare.transit.contract.MatchedLeg;
 import com.transitfare.transit.contract.OperatorView;
 import com.transitfare.transit.contract.Passengers;
 import com.transitfare.transit.contract.PricingResult;
 import com.transitfare.transit.contract.RegionView;
 import com.transitfare.transit.contract.StationView;
+import com.transitfare.transit.contract.StepToMatch;
 import com.transitfare.transit.usecase.GetRegionUseCase;
 import com.transitfare.transit.usecase.ListOperatorsUseCase;
+import com.transitfare.transit.usecase.MatchStepUseCase;
 import com.transitfare.transit.usecase.PriceLegsUseCase;
 import com.transitfare.transit.usecase.SearchStationsUseCase;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +27,7 @@ public class TransitFacadeImpl implements TransitFacade {
     private final SearchStationsUseCase searchStationsUseCase;
     private final ListOperatorsUseCase listOperatorsUseCase;
     private final GetRegionUseCase getRegionUseCase;
+    private final MatchStepUseCase matchStepUseCase;
 
     /**
      * {@link PriceLegsUseCase}: 인원·지역·운영사 지역을 확인하고, 요금 계산 엔진으로 구간별 요금을 구해 일행 총액을 더한다
@@ -48,5 +53,14 @@ public class TransitFacadeImpl implements TransitFacade {
     @Override
     public RegionView getRegion(String regionCode) {
         return getRegionUseCase.execute(regionCode);
+    }
+
+    /**
+     * {@link MatchStepUseCase}: 운영사 별칭 정확 일치 → 역 이름·별칭 일치(안 되면 정규화 후) → 두 역의 공통 노선 →
+     * 이름의 "特急"으로 열차 종별을 정해 매칭 결과를 만든다
+     */
+    @Override
+    public Optional<MatchedLeg> matchStep(String regionCode, StepToMatch step) {
+        return matchStepUseCase.execute(regionCode, step);
     }
 }
