@@ -541,7 +541,9 @@ interface RouteProvider { List<RouteCandidate> findRoutes(PlaceRef origin, Place
 
 규칙(계획이 정함):
 - **매칭(transit 모듈 `MatchStepUseCase`)**: 운영사 = `operator_alias.alias == agencyName`(정확히), 없으면 실패. 역 = 그 운영사 역의 alias·name_ja 정확 일치 → 없으면 `StationNameNormalizer` 후 일치. 노선 = 두 역이 모두 속한 line(여럿이면 `name_ja`가 lineName 포함, 그래도 여럿이면 첫 번째). `trainName` 또는 `lineName`에 "特急" → EXPRESS, 아니면 LOCAL. 좌석 기본 UNRESERVED(사용자가 바꿈).
+  - **사용자 결정 (2026-11-20, transit 구현 `c0d72c2`):** ① 같은 별칭의 운영사가 여럿이면(예: Google "西日本鉄道" = 니시테츠 전철·버스) 승차·하차역이 둘 다 있는 첫 운영사(코드 순). Task 12 실제 응답에서 문제가 되면 `StepToMatch`에 `vehicleType` 추가를 재검토. ② `matchStep`은 에러를 던지지 않는다(없는 지역·빈 정류장 이름 포함) — 결과가 비면 directions가 UNKNOWN + `match_failure`. ③ 두 역의 공통 노선이 없으면 `MatchedLeg.lineId = null` → 거리제(JR·지하철)는 거리 미확인(UNKNOWN).
 - **직통 분할(directions `ThroughServiceSplitter`)**: 한 단계의 승차역은 지하철, 하차역은 JR(또는 반대)이면 경계역 `姪浜`에서 두 단계로 분할. 상수 `BOUNDARIES = Map.of("福岡市地下鉄|JR九州", "姪浜")`(agency 이름 쌍 → 경계역 일본어명, Task 12 실제 응답 보고 보정).
+  - **노선을 넘어 달리는 JR 직통 열차도 분할 대상**(사용자 결정 2026-11-20): 예) 특급 유후 博多→日田는 久留米에서 鹿児島本線→久大本線으로 바뀌므로 `"JR九州|JR九州" → "久留米"` 같은 항목을 경계역 표에 둔다. 분할하지 않으면 공통 노선이 없어 `lineId = null` → 요금 미확인. Task 12 실제 응답으로 보정. 테스트 `jrThroughTrainSplitAtKurume`.
 - 매칭 실패 → `LegInput(TRANSIT, operatorCode=null…)`로 요금 UNKNOWN, `match_failure` upsert(count+1). 후보 유지(리뷰 포커스 5).
 - **요금 검증**: `googleFareAmount != null`이고 모든 구간 OK면 어른 1명 기준 합계와 비교, 다르면 `fare_mismatch` 저장(같은 route_desc가 같은 날 있으면 생략).
 
