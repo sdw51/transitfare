@@ -25,6 +25,7 @@ main  ← 완성본. 직접 커밋 금지
 ```
 
 - 작업은 항상 `dev`에서 딴 `feat/*` 브랜치에서 한다. 모듈 브랜치 아래로 더 쪼개지 않는다.
+- **`dev`·`main` 머지는 사용자가 직접 한다.** Claude 세션은 머지하지 않고, 머지할 준비가 되면(테스트 통과, 커밋 완료) 사용자에게 알린다.
 - `feat/*` → `dev`: `git merge --no-ff`, 메시지 `merge: feat/xxx → dev`. 스쿼시·리베이스 금지.
 - `dev` → `main`: 최종 확인 후 한 번, `git merge --no-ff dev -m "merge: dev → main (v1)"`.
 - 푸시와 머지는 사용자가 요청할 때만.
