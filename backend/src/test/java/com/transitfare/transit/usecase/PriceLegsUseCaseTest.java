@@ -34,13 +34,14 @@ class PriceLegsUseCaseTest {
     PriceLegsUseCase priceLegsUseCase;
 
     static LegInput subway(long from, long to) {
-        return new LegInput(LegMode.TRANSIT, "TEST_SUBWAY", 1L, from, to, TrainClass.LOCAL, SeatType.UNRESERVED, null);
+        return new LegInput(LegMode.TRANSIT, "TEST_SUBWAY", 1L, from, to, TrainClass.LOCAL, SeatType.UNRESERVED,
+                null, false);
     }
 
     @Test
     @DisplayName("구간 요금을 계산하고 일행 총액을 더한다")
     void pricesLegsAndSumsParty() {
-        LegInput manual = new LegInput(LegMode.MANUAL, "TEST_OTHER", null, null, null, null, null, 1000);
+        LegInput manual = new LegInput(LegMode.MANUAL, "TEST_OTHER", null, null, null, null, null, 1000, false);
         PricingResult result = priceLegsUseCase.execute("TEST", List.of(subway(1, 2), manual), new Passengers(2));
 
         assertThat(result.legs()).extracting(LegFare::base).containsExactly(210, 1000);
@@ -63,7 +64,7 @@ class PriceLegsUseCaseTest {
     @DisplayName("다른 지역 운영사가 섞이면 TRANSIT_OPERATOR_REGION_MISMATCH")
     void operatorFromOtherRegionRejected() {
         LegInput otherRegion = new LegInput(LegMode.TRANSIT, "TEST2_BUS", null, 21L, 22L,
-                TrainClass.LOCAL, SeatType.UNRESERVED, null);
+                TrainClass.LOCAL, SeatType.UNRESERVED, null, false);
 
         assertThatThrownBy(() -> priceLegsUseCase.execute("TEST", List.of(subway(1, 2), otherRegion), new Passengers(1)))
                 .isInstanceOf(BusinessException.class)
