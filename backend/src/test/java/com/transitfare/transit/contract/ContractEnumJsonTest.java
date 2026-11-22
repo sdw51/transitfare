@@ -41,6 +41,7 @@ class ContractEnumJsonTest {
                 """, LegInput.class);
         assertThat(leg.mode()).isEqualTo(LegMode.TRANSIT);
         assertThat(leg.trainClass()).isEqualTo(TrainClass.LOCAL);
+        assertThat(leg.continuesPreviousTrain()).isFalse();   // 필드가 없으면 false
         assertThat(mapper.readValue("\"OK\"", FareStatus.class)).isEqualTo(FareStatus.OK);
     }
 

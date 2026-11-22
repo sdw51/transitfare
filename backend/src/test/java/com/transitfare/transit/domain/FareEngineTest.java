@@ -33,7 +33,9 @@ class FareEngineTest {
             .withKm(11, 104, "0.0").withKm(11, 103, "20.0")
             .withBand("JR", FareData.BASE, "30.0", 570).withBand("JR", FareData.BASE, "50.0", 900)
             .withBand("JR", FareData.BASE, "60.0", 1100)
+            .withBand("JR", FareData.EXPRESS, "25.0", 520)
             .withBand("JR", FareData.EXPRESS, "50.0", 760)
+            .withBand("JR", FareData.EXPRESS, "60.0", 1000)
             .withReservedFee("JR", 530)
             .withZone("BUS", 150, 21L, 22L)
             .withPair("BUS", FareData.BASE, 21, 23, 400)
@@ -42,11 +44,16 @@ class FareEngineTest {
     final FareEngine engine = new FareEngine(data);
 
     static LegInput transit(String op, Long line, long from, long to) {
-        return new LegInput(LegMode.TRANSIT, op, line, from, to, TrainClass.LOCAL, SeatType.UNRESERVED, null);
+        return new LegInput(LegMode.TRANSIT, op, line, from, to, TrainClass.LOCAL, SeatType.UNRESERVED, null, false);
+    }
+
+    static LegInput expressReserved(Long line, long from, long to, boolean continuesPreviousTrain) {
+        return new LegInput(LegMode.TRANSIT, "JR", line, from, to, TrainClass.EXPRESS, SeatType.RESERVED, null,
+                continuesPreviousTrain);
     }
 
     static LegInput walk() {
-        return new LegInput(LegMode.WALK, null, null, null, null, null, null, null);
+        return new LegInput(LegMode.WALK, null, null, null, null, null, null, null, false);
     }
 
     @Test
@@ -82,7 +89,7 @@ class FareEngineTest {
     @Test
     @DisplayName("JR 특급 지정석은 운임에 특급요금 밴드와 지정석 요금을 더한다")
     void jrExpressAddsExpressBandAndReservedFee() {
-        LegInput leg = new LegInput(LegMode.TRANSIT, "JR", 10L, 101L, 102L, TrainClass.EXPRESS, SeatType.RESERVED, null);
+        LegInput leg = new LegInput(LegMode.TRANSIT, "JR", 10L, 101L, 102L, TrainClass.EXPRESS, SeatType.RESERVED, null, false);
         LegFare fare = engine.price(List.of(leg), new Passengers(1)).get(0);
         assertThat(fare.base()).isEqualTo(570);       // 30.0km
         assertThat(fare.express()).isEqualTo(760);    // 특급 30.0km → 50.0 밴드
@@ -163,10 +170,42 @@ class FareEngineTest {
     @Test
     @DisplayName("직접 입력 구간은 입력한 금액을 쓴다")
     void manualLegUsesGivenFare() {
-        LegInput manual = new LegInput(LegMode.MANUAL, "OTHER", null, null, null, null, null, 1200);
+        LegInput manual = new LegInput(LegMode.MANUAL, "OTHER", null, null, null, null, null, 1200, false);
         LegFare fare = engine.price(List.of(manual), new Passengers(2)).get(0);
         assertThat(fare.status()).isEqualTo(FareStatus.MANUAL);
         assertThat(fare.base()).isEqualTo(1200);
         assertThat(fare.partyTotal()).isEqualTo(2400);
+    }
+
+    @Test
+    @DisplayName("같은 열차로 노선이 바뀌는 곳을 지나가면 지정석·특급요금은 열차 하나로 한 번 계산한다")
+    void reservedFeeOncePerTrainWhenContinuing() {
+        // 博多(101)→久留米(104) 鹿児島本線 35.7km, 久留米→日田(103) 久大本線 20.0km를 같은 특급으로
+        List<LegFare> fares = engine.price(List.of(
+                expressReserved(10L, 101, 104, false), expressReserved(11L, 104, 103, true)), new Passengers(1));
+
+        assertThat(fares).extracting(LegFare::reserved).containsExactly(530, 0);
+        assertThat(fares).extracting(LegFare::express).containsExactly(1000, 0);   // 55.7km → 60.0 밴드
+        assertThat(fares).extracting(LegFare::base).containsExactly(1100, 0);      // 운임은 묶음 전체 55.7km
+    }
+
+    @Test
+    @DisplayName("다른 특급으로 갈아타면 지정석 요금은 열차마다 붙는다")
+    void reservedFeePerTrainWhenTransferring() {
+        List<LegFare> fares = engine.price(List.of(
+                expressReserved(10L, 101, 104, false), expressReserved(11L, 104, 103, false)), new Passengers(1));
+
+        assertThat(fares).extracting(LegFare::reserved).containsExactly(530, 530);
+    }
+
+    @Test
+    @DisplayName("다른 특급으로 갈아타면 특급요금은 열차마다 따로 계산하고, 운임은 여전히 한 번이다")
+    void expressFeePerTrainWhenTransferring() {
+        List<LegFare> fares = engine.price(List.of(
+                expressReserved(10L, 101, 104, false), expressReserved(11L, 104, 103, false)), new Passengers(1));
+
+        assertThat(fares).extracting(LegFare::express).containsExactly(760, 520);  // 35.7km → 50.0, 20.0km → 25.0
+        assertThat(fares).extracting(LegFare::base).containsExactly(1100, 0);
+        assertThat(fares.get(1).note()).isEqualTo("앞 구간과 합산");
     }
 }

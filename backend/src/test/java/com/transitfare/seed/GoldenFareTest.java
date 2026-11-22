@@ -237,11 +237,11 @@ class GoldenFareTest {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(from + "에 " + lineNameKo + " 노선 없음"));
         return new LegInput(LegMode.TRANSIT, operator, lineId, fromStation.id(), station(operator, to).id(),
-                trainClass, seatType, null);
+                trainClass, seatType, null, false);
     }
 
     private LegInput walk() {
-        return new LegInput(LegMode.WALK, null, null, null, null, null, null, null);
+        return new LegInput(LegMode.WALK, null, null, null, null, null, null, null, false);
     }
 
     private StationView station(String operator, String nameJa) {
