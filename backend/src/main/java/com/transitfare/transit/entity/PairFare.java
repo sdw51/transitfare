@@ -48,4 +48,11 @@ public class PairFare {
 
     @Column(name = "verified_on", nullable = false)
     private LocalDate verifiedOn;
+
+    /** 요금을 다시 확인했을 때(GTFS 재가져오기 등): 금액·출처·확인 날짜를 함께 바꾼다 */
+    public void changeAmount(int amount, String sourceUrl, LocalDate verifiedOn) {
+        this.amount = amount;
+        this.sourceUrl = sourceUrl;
+        this.verifiedOn = verifiedOn;
+    }
 }

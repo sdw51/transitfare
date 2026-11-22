@@ -2,12 +2,16 @@ package com.transitfare.transit.repository;
 
 import com.transitfare.transit.entity.Station;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 /** 역·정류장 */
 public interface StationRepository extends JpaRepository<Station, Long> {
+
+    /** 운영사 안에서 이름(name_ja)이 같은 역. 운영사 안에서 이름은 유일하다 */
+    Optional<Station> findByOperatorCodeAndNameJa(String operatorCode, String nameJa);
 
     /** 운영사의 모든 역(id 순) */
     List<Station> findByOperatorCodeOrderById(String operatorCode);
