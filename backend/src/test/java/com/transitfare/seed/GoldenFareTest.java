@@ -124,9 +124,10 @@ class GoldenFareTest {
     @Test
     @DisplayName("JR 하카타→히타 특급 지정석은 운임 1,930 + 특급 1,200 + 지정석 530 = 3,660엔이다")
     void jrHakataToHitaExpressReserved() {
+        // 특급 유후는 久留米에서 鹿児島本線→久大本線으로 노선만 바뀌고 같은 열차로 계속 간다 → 특급·지정석은 열차 하나로 1회
         PricingResult result = price(
                 express(JR, "가고시마본선", "博多", "久留米"),
-                express(JR, "규다이본선", "久留米", "日田"));
+                sameTrain(express(JR, "규다이본선", "久留米", "日田")));
 
         assertThat(result.hasUnknown()).isFalse();
         assertThat(sum(result, LegFare::base)).isEqualTo(1930);
@@ -202,10 +203,10 @@ class GoldenFareTest {
             LocalDate date = day1.plusDays(day);
             legs.addAll(ticketLegs(date,
                     express(JR, "가고시마본선", "博多", "久留米"),
-                    express(JR, "규다이본선", "久留米", "日田")));
+                    sameTrain(express(JR, "규다이본선", "久留米", "日田"))));
             legs.addAll(ticketLegs(date,
                     express(JR, "규다이본선", "日田", "久留米"),
-                    express(JR, "가고시마본선", "久留米", "博多")));
+                    sameTrain(express(JR, "가고시마본선", "久留米", "博多"))));
         }
 
         OptimizationResult result = passFacade.optimize(REGION, legs, new TicketParty(1), List.of());
@@ -240,6 +241,12 @@ class GoldenFareTest {
                 trainClass, seatType, null, false);
     }
 
+    /** 앞 구간과 같은 열차를 계속 타고 감(노선만 바뀜) — continuesPreviousTrain = true */
+    private LegInput sameTrain(LegInput leg) {
+        return new LegInput(leg.mode(), leg.operatorCode(), leg.lineId(), leg.fromStationId(), leg.toStationId(),
+                leg.trainClass(), leg.seatType(), leg.manualAmount(), true);
+    }
+
     private LegInput walk() {
         return new LegInput(LegMode.WALK, null, null, null, null, null, null, null, false);
     }
@@ -270,7 +277,7 @@ class GoldenFareTest {
             legs.add(new TicketLeg(date, input.operatorCode(), input.lineId(),
                     input.fromStationId(), input.toStationId(),
                     input.trainClass() == TrainClass.EXPRESS,
-                    input.seatType() == SeatType.RESERVED,
+                    input.seatType() == SeatType.RESERVED && !input.continuesPreviousTrain(),   // 지정석은 열차 하나에 1회
                     fare.status() == FareStatus.OK,
                     fare.base(), fare.express(), fare.reserved(),
                     fare.groupId() == null ? null : groupOffset + fare.groupId()));
