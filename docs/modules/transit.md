@@ -35,7 +35,9 @@ contract 타입은 `docs/contracts.md` 그대로. 컨트롤러 전용 모양은 
 
 1. **계산 단위로 자르기**(`FareUnit`): 같은 운영사 거리제 구간이 이어지면(사이 도보 포함) 한 묶음, 나머지는 구간 하나.
 2. **방식별 계산**
-   - `DistanceBandCalculator`(지하철·JR, `DISTANCE_BAND`): 묶음 첫 승차역~마지막 하차역 `pair_fare`가 있으면 그것(특정 구간 예외, 사용자 결정), 없으면 구간 km 합으로 거리 밴드. 특급요금도 같은 방식(특급 구간만). 지정석 요금은 지정석 구간마다. 금액은 묶음 첫 구간, 나머지는 0 + "앞 구간과 합산", 같은 `groupId`.
+   - `DistanceBandCalculator`(지하철·JR, `DISTANCE_BAND`): 운임은 묶음 첫 승차역~마지막 하차역 `pair_fare`가 있으면 그것(특정 구간 예외, 사용자 결정), 없으면 구간 km 합으로 거리 밴드 — 묶음 첫 구간에 1회, 나머지는 0 + "앞 구간과 합산", 같은 `groupId`.
+     특급요금·지정석 요금은 **열차 단위**: 앞 구간과 `continuesPreviousTrain=true`로 이어진 구간들이 열차 하나. 특급요금은 열차마다(그 열차 특급 구간의 쌍 요금, 없으면 km 합 밴드), 지정석 요금은 지정석 구간이 있는 열차마다 1회. 열차의 첫 구간에 붙는다.
+     예) 博多→久留米→日田를 특급 유후 한 대로: 특급·지정석 1회. 久留米에서 다른 특급으로 갈아타면: 열차마다 따로.
    - `StationPairCalculator`(`STATION_PAIR`): 역 쌍 요금 + 특급·지정석.
    - `FlatZonePlusPairCalculator`(니시테츠 버스, `FLAT_ZONE_PLUS_PAIR`): 같은 균일 구간이면 균일 요금, 아니면 쌍 요금.
    - `ManualFareCalculator`: 직접 입력 금액(`MANUAL`).
@@ -103,6 +105,8 @@ cd backend && ./gradlew test --tests 'com.transitfare.transit.*'   # transit만
 ## 알려진 한계·다른 세션 참고
 - **같은 이름 운영사:** 버스·전철 양쪽에 같은 이름 정류장이 둘 다 있으면 코드 순 첫 운영사로 정해져 틀릴 수 있다. Task 12에서 실제 Google 응답을 보고 문제가 되면 `StepToMatch.vehicleType` 추가(계약 변경)를 검토.
 - **노선을 넘어 달리는 JR 직통 열차**(예: 특급 유후 博多→日田, 久留米에서 鹿児島本線→久大本線)는 공통 노선이 없어 요금이 "거리" 미확인이 된다. directions의 `ThroughServiceSplitter`가 경계역으로 나눠야 한다.
+  나눈 뒤 두 번째 구간은 `continuesPreviousTrain=true`로 보내야 특급·지정석이 열차 하나로 계산된다. itinerary의 TicketLeg 변환에서도 `reserved = seatType == RESERVED && !continuesPreviousTrain`(지정석은 열차 하나에 1회).
+- **`LegInput.continuesPreviousTrain`:** JSON에 없거나 null이면 false로 읽는다(`@JsonSetter(nulls = Nulls.AS_EMPTY)` — Jackson 3는 빠진 boolean을 400으로 막으므로 이 필드만 예외, 사용자 결정).
 - **IC카드:** 모든 요금은 현금(종이 승차권) 기준이다(`fare_basis_note`). 니시테츠 버스 일부 노선의 IC·카드 할인, nimoca 환승 할인은 반영하지 않는다.
 - **직접 입력 금액이 빠진 구간:** 400이 아니라 `UNKNOWN`(프론트 입력칸에서 막는다).
 - **이 브랜치의 `docs/contracts.md`는 0단계 버전이다.** 최신은 메인 세션 `feat/enum-label`이고, 코드는 그쪽과 일치한다(`dev` 머지 때 맞춰짐).

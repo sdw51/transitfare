@@ -352,7 +352,8 @@ frontend/src/
 
 계산 규칙(설계 문서 7-1):
 - `WALK` → OK, 0. `MANUAL` → MANUAL, `manualAmount` 필수.
-- `DISTANCE_BAND`: 같은 운영사 TRANSIT 구간이 연속(사이 WALK 무시)하면 각 구간 km(|누적 km 차|) 합으로 BASE 밴드 1회. 금액은 묶음 첫 구간, 나머지 0 + note "앞 구간과 합산". EXPRESS 구간들의 km 합으로 EXPRESS 밴드 → `express`. RESERVED면 `reservedSeatFee` 가산.
+- `DISTANCE_BAND`: 같은 운영사 TRANSIT 구간이 연속(사이 WALK 무시)하면 각 구간 km(|누적 km 차|) 합으로 BASE 밴드 1회. 금액은 묶음 첫 구간, 나머지 0 + note "앞 구간과 합산".
+  - **열차 단위 (사용자 결정 2026-11-22, wave1-fix):** 묶음 안에서 앞 구간과 `continuesPreviousTrain=true`로 이어진 구간들이 열차 하나. 특급요금은 열차마다 그 열차의 EXPRESS 구간 km 합으로 EXPRESS 밴드(다른 특급으로 갈아타면 열차마다 따로), 지정석 요금은 열차에 RESERVED 구간이 있으면 1회. 둘 다 그 열차의 첫 구간에 넣는다. 운임(BASE)은 묶음 전체 1회 그대로. 테스트 `reservedFeeOncePerTrainWhenContinuing`, `reservedFeePerTrainWhenTransferring`, `expressFeePerTrainWhenTransferring`.
   - **예외 구간 우선 (사용자 결정 2026-11-18):** 묶음의 첫 승차역 → 마지막 하차역으로 `pair_fare`(BASE, 특급이면 EXPRESS)를 먼저 찾고, 있으면 그 금액을 쓰고 없을 때만 km 합 밴드로 계산. 테스트 `distanceBandOperatorUsesPairFareWhenDefined`.
 - `STATION_PAIR`: `pairFare(BASE)` (+EXPRESS면 `pairFare(EXPRESS)`). `FLAT_ZONE_PLUS_PAIR`: 같은 zone이면 zone 요금, 아니면 pair.
 - 조회 실패 → 그 구간(묶음 전체) UNKNOWN, 금액 0, note에 빠진 항목.

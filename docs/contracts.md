@@ -139,7 +139,8 @@ public record Passengers(int adults) {}
 public record LegInput(LegMode mode, String operatorCode, Long lineId,
                        Long fromStationId, Long toStationId,
                        TrainClass trainClass, SeatType seatType,
-                       Integer manualAmount) {}
+                       Integer manualAmount,
+                       boolean continuesPreviousTrain) {}  // 앞 구간과 같은 열차를 계속 타고 감(노선만 바뀜). 기본 false
 
 /**
  * 금액은 어른 1명 기준(base 운임, express 특급요금, reserved 지정석 요금). partyTotal = (base + express + reserved) × adults.
@@ -234,7 +235,7 @@ public interface DirectionsFacade {
 | `date` | 구간의 `travel_date` |
 | `operatorCode`, `lineId`, `fromStationId`, `toStationId` | `LegInput` 그대로 |
 | `express` | `trainClass == EXPRESS` |
-| `reserved` | `seatType == RESERVED` |
+| `reserved` | `seatType == RESERVED && !continuesPreviousTrain` (지정석은 열차 하나에 1회 — 이어 타는 구간은 세지 않음) |
 | `fareKnown` | `status == OK` (`UNKNOWN`, `MANUAL`이면 false) |
 | `base`, `expressFare`, `reservedFare` | `LegFare`의 `base`, `express`, `reserved` 그대로 |
 | `groupId` | `LegFare.groupId` |
