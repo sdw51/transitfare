@@ -37,6 +37,9 @@ public class TicketOptimizer {
         List<Candidate> candidates = candidates(legs, units, products, none.total());
         Plan best = search(legs, units, candidates, 0, new ArrayList<>(), none);
         List<Purchase> purchases = best.bought().stream()
+                // 화면에 날짜순으로 보이도록 시작일 → 상품 코드 순(쓰이지 않은 구간 승차권은 시작일이 없어 맨 뒤)
+                .sorted(Comparator.comparing(Bought::startDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(Bought::code))
                 .map(b -> new Purchase(b.code(), b.startDate(), b.unitPrice(), count))
                 .toList();
         return new OptimizationResult(none.total() * count, best.total() * count, purchases, best.coveredBy());

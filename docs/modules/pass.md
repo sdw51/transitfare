@@ -25,6 +25,7 @@
 6. 절감 = 운임 전액 + (`coversExpress`면 특급요금) + (지정석은 `reservedSeatLimit` 횟수까지).
 7. 연속 거리제 묶음(같은 `groupId`)은 묶음 전 구간이 같은 구매로 커버될 때만 절감.
 8. `legCoveredBy`: 커버된 `TicketLeg` 순번 → 상품 코드.
+9. `purchases`는 시작일 → 상품 코드 순.
 
 **알려진 한계:** `consecutive_days=false`(기간 안에서 날짜 골라 쓰는 패스)도 연속 일수로 계산(보수적). FIXED_ROUTE는 같은 상품을 한 번만 산다고 본다.
 
@@ -47,5 +48,5 @@ cd backend && ./gradlew test --tests 'com.transitfare.pass.*'   # pass만
 cd backend && ./gradlew test                                     # ArchitectureTest 포함 전체
 ```
 
-- `TicketOptimizerTest`(순수 로직 10개), `OptimizeTicketsUseCaseTest`(H2, 테스트 지역 `TEST-REGION`, 2개), `ProductControllerTest`(MockMvc, 2개)
+- `TicketOptimizerTest`(순수 로직 11개), `OptimizeTicketsUseCaseTest`(H2, 테스트 지역 `TEST-REGION`, 2개), `ProductControllerTest`(MockMvc, 2개)
 - 실제 상품으로 하는 골든 테스트(`sunqPassCoversHitaGo`, `jrPassCoversHakataHitaExpress`)는 데이터 세션 몫, `./gradlew goldenTest`.

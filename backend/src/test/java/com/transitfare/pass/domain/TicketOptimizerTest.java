@@ -138,6 +138,18 @@ class TicketOptimizerTest {
         assertThat(full.legCoveredBy()).containsOnlyKeys(0, 1);
     }
 
+    @Test
+    @DisplayName("추천 구매는 시작일 순으로 나온다")
+    void purchasesSortedByStartDate() {
+        var legs = List.of(leg(D1, "SUBWAY", 300), leg(D1, "SUBWAY", 300), leg(D1, "SUBWAY", 300),
+                leg(D2, "NISHITETSU", 400), leg(D2, "NISHITETSU", 400), leg(D2, "NISHITETSU", 400));
+        var products = List.of(pass("A_BUS_1DAY", 1000, 1, operator("NISHITETSU")),
+                pass("Z_SUBWAY_1DAY", 640, 1, operator("SUBWAY")));
+        var result = optimizer.optimize(legs, products, ONE);
+        assertThat(result.purchases()).containsExactly(
+                new Purchase("Z_SUBWAY_1DAY", D1, 640, 1), new Purchase("A_BUS_1DAY", D2, 1000, 1));
+    }
+
     private static TicketLeg leg(LocalDate date, String operator, int base) {
         return new TicketLeg(date, operator, null, null, null, false, false, true, base, 0, 0, null);
     }
