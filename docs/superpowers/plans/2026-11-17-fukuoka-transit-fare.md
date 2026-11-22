@@ -53,7 +53,7 @@ main  ← 완성본. Task 1 커밋과 Task 19의 최종 머지만 들어간다
     └ feat/integration, feat/admin, feat/final  (2단계, dev에서 분기)
 ```
 - `main`, `dev`에는 직접 기능 커밋을 하지 않는다. 모든 작업은 `dev`에서 딴 `feat/*` 브랜치에서 한다.
-- **`dev`·`main` 머지는 사용자가 직접 한다.** Claude 세션은 머지 직전까지(테스트 통과, 커밋, 머지 순서 안내) 준비하고, 머지 후 테스트 실행·충돌로 생긴 수정은 `feat/*` 브랜치에서 돕는다.
+- **`feat/*` → `dev`는 PR로 (사용자 결정 2026-11-23).** 세션이 브랜치를 푸시하고 `dev` 대상 PR을 만들면, 사용자가 GitHub에서 머지 커밋으로 머지한다. 1차 작업은 PR #1~#7로 기록됨.
 - `feat/*` → `dev`는 머지 커밋으로 합친다(`git merge --no-ff`, 스쿼시·리베이스 금지). 메시지 `merge: feat/transit → dev`.
 - `dev` → `main`은 Task 19 최종 확인 뒤 한 번, `git merge --no-ff dev`, 메시지 `merge: dev → main (v1)`.
 
