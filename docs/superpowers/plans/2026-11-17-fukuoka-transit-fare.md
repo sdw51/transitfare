@@ -98,13 +98,17 @@ main  ← 완성본. Task 1 커밋과 Task 19의 최종 머지만 들어간다
 
 | 날짜 | 할 일 |
 |---|---|
-| 11/17 | 0단계 (Task 1) |
-| 11/18~19 | 1단계 1차 (transit·pass·데이터) → 19일 저녁 1차 합치기 (Task M1) |
-| 11/20~21 | 1단계 2차 (itinerary·directions·frontend) |
-| 11/22 | 2단계 연결 (Task I1, Google 연동 확인 포함) + 관리자 (Task 15) |
-| 11/23 | 최종 확인 (Task 19), 지역 2~4 데이터 (Task 16~18) 가능한 만큼 |
+마감은 대략 **12/1** (사용자 결정 2026-11-22: 원래 11/23에서 늦춤, 날짜는 기준으로만).
 
-하루가 밀리면 뒤에서부터 뺀다: 관리자 화면 → 인쇄용 요약 → 원화 환산 → Google 연동. 매일 끝에 일정 대비 진행 상황을 사용자에게 알린다.
+| 날짜 | 할 일 | 상태 |
+|---|---|---|
+| 11/17 | 0단계 (Task 1) | 완료 |
+| 11/18~22 | 1단계 1차 (transit·pass·데이터) → 1차 합치기 (Task M1) → `feat/wave1-fix`(지정석·특급 열차 단위) | 완료 |
+| 11/23~27 | 1단계 2차 (itinerary·directions·frontend) | |
+| 11/28~29 | 2단계 연결 (Task I1, Google 연동 확인 포함) + 관리자 (Task 15) | |
+| 11/30~12/1 | 최종 확인 (Task 19), 실제 여행 일정 입력, 지역 2~4 데이터 (Task 16~18) 가능한 만큼 | |
+
+일정이 밀리면 뒤에서부터 뺀다: 관리자 화면 → 인쇄용 요약 → 원화 환산 → Google 연동. 매일 끝에 일정 대비 진행 상황을 사용자에게 알린다.
 
 ### 0단계: 약속 고정 (한 세션, 순차) — Task 1
 골격과 **모듈 간 계약**을 코드로 만들어 `main`에 커밋하고, 바로 `dev` 브랜치를 만든다. 구현은 없다.
@@ -484,7 +488,7 @@ frontend/src/
   원화 환산은 프론트가 `localToKrw`로(서버는 환율만 전달).
 - 유효 구매가: KRW면 `round(price / localToKrw)` 현지 통화, 아니면 그대로, 없으면 공식가.
 
-- [ ] **Step 1: 실패하는 테스트** — `TicketLegMapperTest`: `mapsExpressReservedAndAmounts`, `walkLegsExcluded`, `unknownAndManualLegsMarkedFareUnknown`, `keepsGroupIdForDistanceGroups`; `summaryGroupsByDayAndSums`, `excludedProductNotRecommended`, `purchasePriceOverridesOfficial`, `krwPurchasePriceConvertedWithTripRate`, `krwPurchaseWithoutRateRejected`, `unknownLegPropagatesHasUnknown`; `TripControllerTest`: `summaryEndpointReturnsSummary`, `updateProductSettingEndpoint`
+- [ ] **Step 1: 실패하는 테스트** — `TicketLegMapperTest`: `mapsExpressReservedAndAmounts`, `walkLegsExcluded`, `unknownAndManualLegsMarkedFareUnknown`, `keepsGroupIdForDistanceGroups`, `continuingTrainLegNotCountedAsReserved`(`reserved = RESERVED && !continuesPreviousTrain`, `docs/contracts.md` 변환 표); `summaryGroupsByDayAndSums`, `excludedProductNotRecommended`, `purchasePriceOverridesOfficial`, `krwPurchasePriceConvertedWithTripRate`, `krwPurchaseWithoutRateRejected`, `unknownLegPropagatesHasUnknown`; `TripControllerTest`: `summaryEndpointReturnsSummary`, `updateProductSettingEndpoint`
 - [ ] **Step 2:** FAIL → **Step 3:** 구현 → **Step 4:** PASS
 - [ ] **Step 5: 커밋**
   - ① `feat(itinerary): 승차권 설정 도메인 생성` — `V2`, entity `TripProductSetting`
@@ -510,7 +514,7 @@ frontend/src/
 - [ ] **Step 3:** `npx vitest run` FAIL
 - [ ] **Step 4: 구현** — 화면 동작:
   - 여행 설정: 이름, 지역(현재 후쿠오카만), 기간(Mantine DatePicker), 숙소 이름, 인원, 환율(선택).
-  - 날짜별 일정과 `SegmentEditor`: 이 태스크에서는 "역 직접 선택"(운영사 → 역 검색 → 특급/보통·지정석/자유석 → `/api/v1/pricing` 미리보기, 탈것 여러 개)과 "요금 직접 입력"(운영사 '기타', 메모, 1인 금액) 두 모드.
+  - 날짜별 일정과 `SegmentEditor`: 이 태스크에서는 "역 직접 선택"(운영사 → 역 검색 → 특급/보통·지정석/자유석 → `/api/v1/pricing` 미리보기, 탈것 여러 개)과 "요금 직접 입력"(운영사 '기타', 메모, 1인 금액) 두 모드. 같은 운영사 특급 구간을 연달아 넣으면 두 번째 구간에 "같은 열차로 계속" 체크(`continuesPreviousTrain`)를 기본으로 켜고, 사용자가 끌 수 있다(다른 특급으로 갈아탈 때).
   - 구간 요금 내역 펼치기(운임/특급/지정석). UNKNOWN은 "미확인" 경고 텍스트 + "역 다시 선택 / 요금 직접 입력".
   - `SummaryPanel`: 날짜별 합계, 개별 요금 합계, 추천 구매와 절약액, 미확인 경고, `fareBasisNotes`.
   - `ProductSettings`: "비교에 포함", "내 구매가"(현지 통화/원), 이용 조건. 원 선택 시 환율 없으면 안내 문구.
@@ -546,6 +550,7 @@ interface RouteProvider { List<RouteCandidate> findRoutes(PlaceRef origin, Place
   - **사용자 결정 (2026-11-20, transit 구현 `c0d72c2`):** ① 같은 별칭의 운영사가 여럿이면(예: Google "西日本鉄道" = 니시테츠 전철·버스) 승차·하차역이 둘 다 있는 첫 운영사(코드 순). Task 12 실제 응답에서 문제가 되면 `StepToMatch`에 `vehicleType` 추가를 재검토. ② `matchStep`은 에러를 던지지 않는다(없는 지역·빈 정류장 이름 포함) — 결과가 비면 directions가 UNKNOWN + `match_failure`. ③ 두 역의 공통 노선이 없으면 `MatchedLeg.lineId = null` → 거리제(JR·지하철)는 거리 미확인(UNKNOWN).
 - **직통 분할(directions `ThroughServiceSplitter`)**: 한 단계의 승차역은 지하철, 하차역은 JR(또는 반대)이면 경계역 `姪浜`에서 두 단계로 분할. 상수 `BOUNDARIES = Map.of("福岡市地下鉄|JR九州", "姪浜")`(agency 이름 쌍 → 경계역 일본어명, Task 12 실제 응답 보고 보정).
   - **노선을 넘어 달리는 JR 직통 열차도 분할 대상**(사용자 결정 2026-11-20): 예) 특급 유후 博多→日田는 久留米에서 鹿児島本線→久大本線으로 바뀌므로 `"JR九州|JR九州" → "久留米"` 같은 항목을 경계역 표에 둔다. 분할하지 않으면 공통 노선이 없어 `lineId = null` → 요금 미확인. Task 12 실제 응답으로 보정. 테스트 `jrThroughTrainSplitAtKurume`.
+  - **분할한 뒷구간은 `continuesPreviousTrain = true`**(wave1-fix 계약): 같은 열차를 이어 타는 것이므로 지정석·특급요금을 다시 붙이지 않는다. 테스트 `splitSecondPartContinuesPreviousTrain`(지하철↔JR 직통, JR↔JR 久留米 둘 다).
 - 매칭 실패 → `LegInput(TRANSIT, operatorCode=null…)`로 요금 UNKNOWN, `match_failure` upsert(count+1). 후보 유지(리뷰 포커스 5).
 - **요금 검증**: `googleFareAmount != null`이고 모든 구간 OK면 어른 1명 기준 합계와 비교, 다르면 `fare_mismatch` 저장(같은 route_desc가 같은 날 있으면 생략).
 
